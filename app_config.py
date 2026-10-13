@@ -16,7 +16,7 @@ import sys
 import tempfile
 
 APP_ID = "aiman-personal-world"
-VERSION = "0.1.1"
+VERSION = "0.2.0"
 DEFAULT_PORT = 18792
 ACCESS_FILE = "personal-world-access.json"
 CONFIG_FILE = "source-config.json"
@@ -150,6 +150,13 @@ class StateLock:
             self.stream.close()
             self.stream = None
             raise AppError("state_busy", "这个数据目录已有任务正在运行，请等待它完成。") from None
+        if self.name == "refresh.lock":
+            try:
+                from archive_publish import recover
+                self.recovery = recover(self.state)
+            except BaseException:
+                self.__exit__(None,None,None)
+                raise
         return self
 
     def __exit__(self, exc_type, exc, tb):
@@ -324,40 +331,6 @@ def configure(state: Path, changes: dict) -> dict:
 
 
 def publish_archive(staging: Path, state: Path) -> None:
-    """Publish an already-verified pair, restoring both old files on an error."""
-    names = ("archive.jsonl", "index.sqlite")
-    for name in names:
-        private_file(staging / name)
-        if (state / name).is_symlink():
-            raise AppError("archive_symlink", "不能替换符号链接形式的归档或索引。")
-    backup = Path(tempfile.mkdtemp(prefix=".publish-backup-", dir=state))
-    previous, replaced = [], []
-    restored = False
-    try:
-        for name in names:
-            if (state / name).exists():
-                try:
-                    os.link(state / name, backup / name)
-                except OSError:
-                    shutil.copy2(state / name, backup / name)
-                    (backup / name).chmod(0o600)
-                previous.append(name)
-        try:
-            for name in names:
-                os.replace(staging / name, state / name)
-                replaced.append(name)
-        except BaseException:
-            try:
-                for name in reversed(replaced):
-                    if name in previous:
-                        os.replace(backup / name, state / name)
-                    else:
-                        (state / name).unlink(missing_ok=True)
-                restored = True
-            except OSError:
-                raise AppError("publish_recovery_needed", "发布中断且自动恢复未完成；旧文件仍保留在状态目录的发布备份中。") from None
-            raise
-        restored = True
-    finally:
-        if restored or not replaced:
-            shutil.rmtree(backup)
+    """Publish an already-verified pair with a crash-recoverable journal."""
+    from archive_publish import publish
+    publish(staging,state)

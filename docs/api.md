@@ -1,4 +1,4 @@
-# 本地 API · v0.1.1
+# 本地 API · v0.2.0
 
 服务由 `personal_world.py` 启动，默认地址为 `http://127.0.0.1:18792`。以下接口面向同一台电脑上的个人工作空间；没有公网、多租户、云模型或第三方消息发送接口。
 
@@ -120,3 +120,18 @@ await fetch('/api/world/review', {
 `GET /api/world/reviews?limit=100&offset=0` 返回 `items`、`total`、`has_more`、`next_offset`。每项保留原来的人工 `status`、`note`、`anchor_id`、`source_fingerprint`；`source_state` 为 unchanged、changed 或 unavailable。自定义搜索在冷启动后可能需要先重新检索才能定位；unavailable 不能解读为项目消失。
 
 机会接口支持 `status=active`，只返回有效状态为 needs_review 或 follow_up 的记录。新增 `effective_status`：来源变化的旧标记归入 needs_review，但 `status` 和 `review_note` 保持原样。默认不传 status 仍返回所有状态，兼容 v0.1.0。关联线索过滤会读取最新人工复核，不使用缓存中的旧人工状态；关闭或复核过期的合作方被隐藏，`hidden_related_leads` 报告隐藏数量。这一版对原最多三条关联进行过滤，不会为被隐藏位置自动扩展候选池。人工作业不改变 source_fingerprint。
+
+## v0.2.0 · 历史导入
+
+以下接口继续要求已有本机 Cookie；POST 必须是准确同源 Origin。
+
+- `GET /api/world/imports`：读取来源批次、最近100次导入记录、按月覆盖和未知时间消息数。不会返回本机文件路径或密钥。
+- `POST /api/world/import/preview?format=jsonl&source_id=primary&policy=keep_existing&label=...`：正文为用户选定的原始文件字节，Content-Type 必须为 application/octet-stream；必须有单个有效 Content-Length，不接受 Transfer-Encoding。上限512 MiB。format 只接受 json/jsonl。仅创建私人预览，返回 plan_id、summary、can_apply、expires_at。
+- `POST /api/world/import/apply`：JSON `{"plan_id":"..."}`；核对后确认已生成的预览。旧预览遇到当前数据变化返回409，不能自动重试覆盖。重复确认同一已完成预览返回原批次结果，不重复导入。
+- `POST /api/world/import/cancel`：同样传 plan_id，只删除未确认的预览产物，不删除已导入历史和来源快照。
+
+summary 区分 messages_added、messages_changed、messages_unchanged、conflicts、kept_existing、identity_conflicts、conversations_added、conversations_changed、before_messages、after_messages 以及合并后首尾时间戳。相同编号且会话或时间不一致属于身份冲突，无论更新策略如何都不能直接确认。
+
+确认结果的 delta 包含 mode、rows_inserted、rows_updated、search_rows_written。copy_on_write_delta 表示复制当前索引后增量写入；不表示原生微信解密或输入校验已只处理新增记录。validation 描述输入验证层，最终集合另有来源映射和索引校验。
+
+预览上传使用上述独立上限，其余 JSON 写操作保持128 KiB 上限。真实微信 refresh --preview 会准备新的媒体缓存，但不替换当前归档和索引。更完整的范围见 [历史导入](history-import.md)。

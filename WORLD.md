@@ -1,6 +1,6 @@
 # AIMAN Personal World 的六个问题
 
-本文定义 v0.1.1 当前实现的边界。这里的“世界”是个人证据工作空间的设计目标；本版实现的是聊天证据浏览、本地规则候选和人工工作记录，还没有完整世界模型、实体消歧或语义推理引擎。
+本文定义 v0.2.0 当前实现的边界。这里的“世界”是个人证据工作空间的设计目标；本版实现的是聊天证据浏览、本地规则候选和人工工作记录，还没有完整世界模型、实体消歧或语义推理引擎。
 
 ## 1. World · 我们在描述什么世界？
 
@@ -64,3 +64,9 @@
 这六个问题参照 AIMAN World Protocol `v0.1.0-draft` 的 World / Scope / Truth & Evidence / Uncertainty / Actions / Verification 结构，来源仓库为 [Azhu9701/industry-world-model](https://github.com/Azhu9701/industry-world-model)，参考提交为 `14f05caba9c157f75f18cb8ecb987423d35b850d`。本文说明本项目的具体实现与缺口，不复制整份协议，也不声称已经通过协议认证。
 
 实现依据：[world_model.py](world_model.py)、[server.py](server.py)、[数据格式](docs/data-format.md)、[隐私设计](docs/privacy.md)。
+
+## v0.2.0 的累积历史约束
+
+补旧记录不默认覆盖已有新内容；新快照缺少记录不等于删除。明确来源命名空间内按稳定ID去重，不按姓名或文字相似度猜测身份。身份冲突必须停下核查，不能用覆盖策略绕过。
+
+规范展示集合和保留输入分别承担当前视图与来源角色；集合 origin 可逐条回查输入，合并不能伪造单一数据库的逐表完整性。月度空白只是本机覆盖空白。后台持续采集、本地语义模型、隐私遗忘与应用级加密不是本版已完成能力。

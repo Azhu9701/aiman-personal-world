@@ -25,9 +25,10 @@ import stat
 import sys
 import threading
 import time
+import tempfile
 import urllib.parse
 
-from app_config import APP_ID, VERSION, DEFAULT_PORT, ACCESS_FILE, default_state, state_id, private_dir as ensure_private_dir
+from app_config import AppError, APP_ID, VERSION, DEFAULT_PORT, ACCESS_FILE, default_state, state_id, private_dir as ensure_private_dir
 from world_model import WorldModel, SourceChangedError, DraftConflictError
 
 APP_DIR = Path(__file__).resolve().parent
@@ -116,7 +117,7 @@ def media_reference(value):
     return "/api/media/" + urllib.parse.quote(suffix, safe="._-")
 
 
-def import_archive(source: Path, state: Path) -> dict:
+def import_archive(source: Path, state: Path, *, build_search: bool = True) -> dict:
     """Build an independent index atomically; invalid input never replaces it."""
     private_dir(state)
     tmp = state / ("index-building-" + secrets.token_hex(6) + ".sqlite")
@@ -174,6 +175,8 @@ def import_archive(source: Path, state: Path) -> dict:
         """)
         search_engine = "substring"
         try:
+            if not build_search:
+                raise sqlite3.OperationalError("Search intentionally omitted for input validation")
             conn.execute("CREATE VIRTUAL TABLE messages_fts USING fts5(text, content='messages', content_rowid='rowid', tokenize='trigram')")
             conn.execute("INSERT INTO messages_fts(rowid,text) SELECT rowid,text FROM messages")
             search_engine = "trigram"
@@ -197,6 +200,8 @@ def import_archive(source: Path, state: Path) -> dict:
 
 @contextlib.contextmanager
 def read_index(state: Path):
+    if (state / "archive-publication.json").exists():
+        raise OSError("Archive publication needs recovery")
     path = state / "index.sqlite"
     conn = sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=5)
     try:
@@ -356,6 +361,9 @@ class ViewerHandler(http.server.BaseHTTPRequestHandler):
                 return self.json_response(status_data(self.server.state))
             if split.path == "/api/world/overview":
                 return self.json_response(self.server.world.overview())
+            if split.path == "/api/world/imports":
+                from history_import import catalog
+                return self.json_response(catalog(self.server.state))
             if split.path == "/api/world/drafts":
                 return self.json_response(self.server.world.drafts())
             if split.path == "/api/world/draft":
@@ -418,7 +426,9 @@ class ViewerHandler(http.server.BaseHTTPRequestHandler):
         if self.headers.get("Origin") != expected or self.headers.get("Sec-Fetch-Site") in ("cross-site", "same-site"):
             return self.json_response({"error": "本地工作台修改需要同源请求"}, 403)
         path = urllib.parse.urlsplit(self.path).path
-        if path not in ("/api/world/review", "/api/world/draft", "/api/world/draft/edit"):
+        if path == "/api/world/import/preview":
+            return self.import_preview()
+        if path not in ("/api/world/review", "/api/world/draft", "/api/world/draft/edit", "/api/world/import/apply", "/api/world/import/cancel"):
             return self.json_response({"error": "仅支持本地人工标记和草稿；没有发送或写入微信的接口"}, 405)
         try:
             if self.headers.get("Transfer-Encoding") or self.headers.get("Content-Type", "").split(";", 1)[0].strip() != "application/json":
@@ -430,6 +440,10 @@ class ViewerHandler(http.server.BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(length))
             if not isinstance(body, dict):
                 raise ValueError("body")
+            if path in ("/api/world/import/apply","/api/world/import/cancel"):
+                from history_import import commit,discard
+                action=commit if path.endswith("/apply") else discard
+                return self.json_response(action(body.get("plan_id"),self.server.state))
             fingerprint = body.get("source_fingerprint")
             if not isinstance(fingerprint, str) or len(fingerprint) != 64 or any(c not in "0123456789abcdef" for c in fingerprint):
                 raise ValueError("source_fingerprint")
@@ -440,6 +454,8 @@ class ViewerHandler(http.server.BaseHTTPRequestHandler):
             else:
                 result = self.server.world.create_draft(body.get("id"), fingerprint)
             return self.json_response(result)
+        except AppError as error:
+            return self.json_response({"error":error.message,"code":error.code},409 if error.code in ("plan_stale","plan_expired","identity_conflict","state_busy","publish_recovery_needed") else 400)
         except DraftConflictError:
             return self.json_response({"error":"草稿已在其他窗口更新；未覆盖最新版本，你的修改仍保留。请重新读取后合并。","code":"draft_conflict"},409)
         except SourceChangedError:
@@ -450,6 +466,38 @@ class ViewerHandler(http.server.BaseHTTPRequestHandler):
             return self.json_response({"error": "请求参数无效"}, 400)
         except (sqlite3.Error, OSError):
             return self.json_response({"error": "本地工作台暂时无法写入，原始归档未改变"}, 503)
+
+    def import_preview(self):
+        from history_import import prepare,MAX_UPLOAD
+        try:
+            if self.headers.get("Transfer-Encoding") or self.headers.get("Content-Type","").split(";",1)[0].strip()!="application/octet-stream":
+                return self.json_response({"error":"请选择本机JSON/JSONL文件，使用原始文件上传。"},415)
+            lengths=self.headers.get_all("Content-Length",[])
+            if len(lengths)!=1 or not lengths[0].isdigit():
+                return self.json_response({"error":"文件长度无效。"},400)
+            length=int(lengths[0])
+            if not 0<length<=MAX_UPLOAD:return self.json_response({"error":"请分批导入，每个文件上限512 MiB。"},413)
+            params=urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+            fmt=first_arg(params,"format")
+            if fmt not in ("json","jsonl"):raise ValueError("format")
+            self.connection.settimeout(30)
+            with tempfile.TemporaryDirectory(prefix=".upload-",dir=self.server.state) as temporary:
+                source=Path(temporary)/("upload."+fmt)
+                with source.open("xb") as output:
+                    source.chmod(0o600);remaining=length
+                    while remaining:
+                        chunk=self.rfile.read(min(1024*1024,remaining))
+                        if not chunk:raise ValueError("incomplete upload")
+                        output.write(chunk);remaining-=len(chunk)
+                preview=prepare(source,self.server.state,source_id=first_arg(params,"source_id","primary"),
+                                policy=first_arg(params,"policy","keep_existing"),label=first_arg(params,"label","手动归档"))
+            return self.json_response(preview)
+        except AppError as error:
+            return self.json_response({"error":error.message,"code":error.code},409 if error.code in ("state_busy","preview_source_changed","too_many_previews") else 400)
+        except (ValueError,TypeError):
+            return self.json_response({"error":"文件或导入参数无效，当前历史没有改变。"},400)
+        except (OSError,sqlite3.Error):
+            return self.json_response({"error":"本机预览未完成，当前历史保持不变。"},503)
 
     def unsupported_method(self):
         self.json_response({"error": "不支持此操作"}, 405)
@@ -629,13 +677,14 @@ def main():
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--import-file", type=Path)
     parser.add_argument("--import-only", action="store_true")
+    parser.add_argument("--skip-search",action="store_true",help="Validation-only input index; do not build a search index")
     parser.add_argument("--open", action="store_true")
     args = parser.parse_args()
     os.umask(0o077)
     state = args.data_dir.expanduser().resolve()
     private_dir(state)
     if args.import_file:
-        print(json.dumps(import_archive(args.import_file.expanduser().resolve(), state), ensure_ascii=False))
+        print(json.dumps(import_archive(args.import_file.expanduser().resolve(), state,build_search=not args.skip_search), ensure_ascii=False))
         if args.import_only:
             return
     token = secrets.token_urlsafe(32)

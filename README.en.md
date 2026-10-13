@@ -2,7 +2,7 @@
 
 **A local workspace for browsing your chat history, tracing evidence, and reviewing possible next steps yourself.**
 
-Version 0.1.1 is an early, working release. It imports normalized chat archives and uses local keywords and rules to organize demand, supply, and collaboration signals around topics such as robotics, robotic arms, manufacturing capacity, and control systems. Each candidate leads back to its source messages.
+Version 0.2.0 is an early, working release. It imports normalized chat archives and uses local keywords and rules to organize demand, supply, and collaboration signals around topics such as robotics, robotic arms, manufacturing capacity, and control systems. Each candidate leads back to its source messages.
 
 This version does not call an LLM, perform semantic search, establish that an opportunity was never pursued, or score a person's trustworthiness. Connections to public AIMAN Robotics / Manufacturing worlds are a roadmap item.
 
@@ -80,7 +80,7 @@ The release checker inspects publishable files for runtime data, key/configurati
 
 ## Version and license
 
-**v0.1.1** is an early personal evidence workspace, not a complete world model or autonomous business-decision system.
+**v0.2.0** is an early personal evidence workspace, not a complete world model or autonomous business-decision system.
 
 Original project code is [MIT licensed](LICENSE). Adapted DAT image-format helpers retain their upstream MIT notice in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt). Pilk, SQLCipher bindings, FFmpeg, and other separately installed dependencies keep their own licenses. Source releases do not bundle WeChat binaries, runtime vendor directories, model weights, or user data.
 
@@ -93,3 +93,13 @@ Edit a draft title and body and choose **Save changes**. Saved edits survive pag
 Completed, dismissed, or stale reviewed counterparts are excluded from related recommendations and new draft templates. Source fingerprints remain independent of human status. A changed source returns a previously closed item to the needs-review lane while preserving its original annotation. The review ledger keeps earlier notes visible even when the source is no longer locatable. A stale draft can still be read or copied, but editing requires a freshly generated draft after checking current evidence.
 
 `scripts/test_browser.mjs` provides a real Chromium smoke check using only handwritten synthetic data and a new temporary browser profile. No private browser session or downloaded browser is used.
+
+## v0.2.0 — History backfill and incremental merge
+
+The Sources dialog now accepts local normalized JSON/JSONL files. Preview additions, exact duplicates and conflicts before applying. Stable IDs are deduplicated only within an explicit namespace. Backfills keep existing content by default; an explicit prefer-incoming policy updates same-ID content. Different conversation or timestamp identity collisions block confirmation. Missing rows never mean automatic deletion.
+
+Configured WeChat refreshes now merge instead of replacing accumulated history. Collection files are regenerated and the index is copied for safe publication, but only new/changed rows and changed FTS entries are written. Source extraction remains a fully verified snapshot, not incremental encrypted-page reading or a background watcher.
+
+Retained normalized input snapshots support per-record origin auditing. Existing reviews and draft revisions remain separate. A durable publication journal supports recovery after interruption between the archive/index swaps; unknown external changes cause a stop instead of forced overwrite. These snapshots are private, are not automatically expired, and do not disappear when you delete a message in the original client. Application-level at-rest encryption and selective deletion are still not implemented.
+
+See [history import and recovery](docs/history-import.md) for source namespaces, the 512 MiB batch limit, CLI commands and verification scope.

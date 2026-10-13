@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.0 — 2026-10-13
+
+- Add local JSON/JSONL history upload, preview and explicit commit/cancel, with source namespaces and conservative conflict handling.
+- Preserve records absent from a later snapshot; reject same-ID conversation/timestamp collisions rather than silently merging people or histories.
+- Retain normalized inputs by hash and audit each normalized collection record against its retained origin.
+- Reuse a consistent SQLite backup and write only new/changed rows and changed FTS entries. Native WeChat extraction remains a fully checked snapshot.
+- Route configured refresh through cumulative merge and provide refresh --preview for review before publication.
+- Add monthly coverage and source/import batch inspection, with unknown and empty ranges explicitly distinguished.
+- Add a durable archive/index publication journal, controlled recovery, source-change checks and reader pause during publication.
+- Extend synthetic tests and real Chromium file-selection/preview/commit coverage. No background watcher, data deletion UI, cloud inference or application-level encryption was added.
+
+
 ## 0.1.1 — 2026-10-13
 
 - Persist edited draft titles and bodies in an append-only revision table; preserve generated v1 rows and read old workspaces without migration.

@@ -103,7 +103,7 @@ def chatbot_available(root: Path) -> bool:
     return matches == 1
 
 
-def refresh_state(state: Path, *, no_open: bool = False, port: int | None = None, timeout: int = 7200) -> dict:
+def refresh_state(state: Path, *, no_open: bool = False, port: int | None = None, timeout: int = 7200, preview: bool = False) -> dict:
     if os.name != "posix":
         raise AppError("refresh_platform_unsupported", "此版本的微信数据库刷新仅支持 macOS/Linux；此平台仍可查看和导入离线归档。")
     if not 1 <= timeout <= 86400:
@@ -153,14 +153,17 @@ def refresh_state(state: Path, *, no_open: bool = False, port: int | None = None
                 print(json.dumps({"stage": "chatbot", "status": "source_not_present"}), flush=True)
 
             run_stage("index", [sys.executable, str(APP_DIR / "server.py"), "--data-dir", str(staging),
-                                "--import-file", str(archive), "--import-only"], state, environment, timeout)
+                                "--import-file", str(archive), "--import-only", "--skip-search"], state, environment, timeout)
             run_stage("verify", [sys.executable, str(APP_DIR / "verify_archive.py"), "--state", str(staging),
                                  "--media-dir", str(state / "media")], state, environment, timeout)
-            publish_archive(staging, state)
+            from history_import import _prepare_locked, _commit_locked
+            prepared=_prepare_locked(archive,state,policy="prefer_incoming",label="微信本机快照",validated_dir=staging)
+            merge_result=prepared if preview else _commit_locked(prepared["plan_id"],state)
         with contextlib.closing(sqlite3.connect((state / "index.sqlite").as_uri() + "?mode=ro", uri=True)) as db:
             counts = {"message_count": db.execute("SELECT count(*) FROM messages").fetchone()[0],
                       "conversation_count": db.execute("SELECT count(*) FROM conversations").fetchone()[0]}
-    result = {"ok": True, "status": "refreshed", "chatbot_source_present": chatbot_present, **counts}
+    result = {"ok": True, "status": "refresh_preview" if preview else "refreshed", "chatbot_source_present": chatbot_present, "merge":merge_result,
+              "extraction_mode":"verified_full_snapshot", **counts}
     if not no_open:
         from launch import open_viewer
         result["viewer"] = open_viewer(state, port=port)

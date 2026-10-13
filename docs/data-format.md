@@ -82,3 +82,7 @@ python3 personal_world.py verify
 新索引通过检查后发布。空消息、重复消息 ID、清单数量不一致和明确失败的导出会被拒绝；不把导入失败解释成“没有记录”。对可选微信来源，验证还比较逐表清单和分类状态。验证只能覆盖选定输入及其声明范围，不能证明某段消息在现实中真实发生。
 
 实现依据：[server.py](../server.py)、[sync_wechat.py](../sync_wechat.py)、[verify_archive.py](../verify_archive.py)。
+
+## 累积集合格式
+
+v0.2.0 引入由程序生成的 `personal-world.collection.v1`。当前消息仍有原来的统一12字段；额外 origin 指向本机保留批次及原消息编号。来源批次包括 source_id、archive_sha256、输入数量和日期范围，不能相加当作去重总量。用户导出的集合若作为单个文件再次导入，只按该文件提供的统一内容核对，不把其中的原批次声明当作已核实的外部证据。详见 [历史导入](history-import.md)。
