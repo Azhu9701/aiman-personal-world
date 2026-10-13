@@ -469,7 +469,10 @@
     function importBusy(value) { S.historyBusy=value; ['history-import-prepare','history-import-reload','history-import-file','history-import-source','history-import-policy','history-import-identity'].forEach(function(id){$(id).disabled=value;}); $('history-import-apply').disabled=value||!S.historyPlan||!S.historyPlan.can_apply||S.historySettings!==importSettings(); }
     async function showHistoryImport() { $('source-dialog').close();showDialog($('history-import-dialog'));await loadHistoryCatalog(); }
     async function loadHistoryCatalog() { const box=$('history-import-catalog');loading(box,'正在读取本机覆盖范围…');
-      try{const data=await request('/api/world/imports');box.replaceChildren();if(!data.ready){box.append(el('p','scope','尚未导入记录。'));return;}
+      try{const data=await request('/api/world/imports');box.replaceChildren();
+        if(list(data.pending_previews).length){box.append(el('h3','','未确认的本机预览'));list(data.pending_previews).forEach(function(plan){const row=el('div','related-lead');row.append(el('strong','',str(plan.label,'本机导入')),el('p','scope',full(plan.created_at)+(plan.expired?' · 已过期':' · 尚未确认')),
+          button('取消这份预览','button small',async function(){if(S.historyBusy)return;importBusy(true);try{await request('/api/world/import/cancel',{method:'POST',body:JSON.stringify({plan_id:plan.plan_id})});if(S.historyPlan&&S.historyPlan.plan_id===plan.plan_id){S.historyPlan=null;renderImportPreview(null);}await loadHistoryCatalog();toast('只清理了未确认预览，已导入历史保持不变。');}catch(error){toast(error.message);}finally{importBusy(false);}}));box.append(row);});}
+        if(!data.ready){box.append(el('p','scope','尚未导入记录。'));return;}
         const months=el('div');months.style.maxHeight='240px';months.style.overflow='auto';
         const table=el('table','data-table'),body=el('tbody');list(data.months).forEach(function(item){const row=el('tr');row.append(el('td','',item.month),el('td','',n(item.messages)+(item.messages?' 条':' · 尚无已导入记录')));body.append(row);});table.append(body);months.append(table);box.append(months);
         if(data.months_truncated)box.append(el('p','scope','跨度较大，这里最多显示600个月。'));

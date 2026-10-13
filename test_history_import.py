@@ -134,6 +134,15 @@ class HistoryTests(unittest.TestCase):
         result=history.commit(plan['plan_id'],other)
         self.assertEqual(result['delta']['mode'],'initial_build');self.assertTrue(cli.verify_state(other)['ok'])
 
+    def test_interrupted_preview_can_be_found_and_canceled_after_restart(self):
+        plan=self.prepare(self.source([self.message('older','人工旧数据',1577836800)]))
+        pending=history.catalog(self.state)['pending_previews']
+        self.assertEqual([x['plan_id'] for x in pending],[plan['plan_id']])
+        self.assertNotIn(str(self.root),json.dumps(pending))
+        before=self.pair();history.discard(plan['plan_id'],self.state)
+        self.assertEqual(history.catalog(self.state)['pending_previews'],[])
+        self.assertEqual(self.pair(),before)
+
 
 class PublicationTests(unittest.TestCase):
     def setUp(self):

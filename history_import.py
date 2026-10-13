@@ -410,9 +410,33 @@ def merge_locked(source,state,*,source_id='primary',policy='keep_existing',label
     return _commit_locked(plan['plan_id'],state)
 
 
+def pending_previews(state):
+    """Expose only safe local plan summaries so interrupted UI work is cancelable."""
+    parent=Path(state)/'import-plans'
+    if not parent.exists():return []
+    if parent.is_symlink() or not parent.is_dir():raise OSError('Invalid preview directory')
+    items=[]
+    for folder in parent.iterdir():
+        if not re.fullmatch(r'[0-9a-f]{32}',folder.name) or folder.is_symlink() or not folder.is_dir():continue
+        path=folder/'plan.json'
+        if not path.exists():continue
+        try:
+            private_file(path,limit=2*1024*1024)
+            plan=json.loads(path.read_text())
+            if plan.get('id')!=folder.name or plan.get('status')!='preview':continue
+            items.append({'plan_id':folder.name,'label':str(plan.get('label','本机导入'))[:120],
+                          'created_at':plan.get('created_at'), 'expires_at':plan.get('expires_at'),
+                          'expired':time.time()>plan.get('expires_at',0)})
+        except (AppError,ValueError,TypeError):
+            # Invalid files must not be automatically deleted or represented as
+            # a verified import; controlled recovery can inspect them locally.
+            continue
+    return sorted(items,key=lambda p:(p['created_at'] or 0,p['plan_id']),reverse=True)
+
+
 def catalog(state):
     state=Path(state)
-    if not (state/'index.sqlite').is_file():return {'ready':False,'batches':[],'imports':[],'months':[]}
+    if not (state/'index.sqlite').is_file():return {'ready':False,'batches':[],'imports':[],'months':[],'pending_previews':pending_previews(state)}
     if (state/'archive-publication.json').exists():raise OSError('Archive publication pending')
     with contextlib.closing(_readonly_index(state)) as conn:
         meta=json.loads(conn.execute("SELECT value FROM metadata WHERE key='manifest'").fetchone()[0])
@@ -426,7 +450,7 @@ def catalog(state):
             key=f'{y:04d}-{m:02d}';months.append({'month':key,'messages':counts.get(key,0)})
             y,m=(y+1,1) if m==12 else (y,m+1)
         truncated=(y,m)<=end
-    return {'ready':True,'format':meta.get('archive_format','legacy_snapshot'),
+    return {'ready':True,'format':meta.get('archive_format','legacy_snapshot'),'pending_previews':pending_previews(state),
             'batches':meta.get('source_batches',[]),'imports':list(reversed(meta.get('import_history',[])))[0:100],
             'months':months,'months_truncated':truncated,'unknown_time_messages':unknown,
             'notes':['这是已导入记录的覆盖，不是完整微信历史。','空白月份只表示尚无已导入记录，不证明没有聊天。',

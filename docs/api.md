@@ -125,7 +125,7 @@ await fetch('/api/world/review', {
 
 以下接口继续要求已有本机 Cookie；POST 必须是准确同源 Origin。
 
-- `GET /api/world/imports`：读取来源批次、最近100次导入记录、按月覆盖和未知时间消息数。不会返回本机文件路径或密钥。
+- `GET /api/world/imports`：读取来源批次、最近100次导入记录、按月覆盖和未知时间消息数；pending_previews 提供未确认预览的编号、名称和到期状态，可用取消接口清理。不会返回本机文件路径或密钥。
 - `POST /api/world/import/preview?format=jsonl&source_id=primary&policy=keep_existing&label=...`：正文为用户选定的原始文件字节，Content-Type 必须为 application/octet-stream；必须有单个有效 Content-Length，不接受 Transfer-Encoding。上限512 MiB。format 只接受 json/jsonl。仅创建私人预览，返回 plan_id、summary、can_apply、expires_at。
 - `POST /api/world/import/apply`：JSON `{"plan_id":"..."}`；核对后确认已生成的预览。旧预览遇到当前数据变化返回409，不能自动重试覆盖。重复确认同一已完成预览返回原批次结果，不重复导入。
 - `POST /api/world/import/cancel`：同样传 plan_id，只删除未确认的预览产物，不删除已导入历史和来源快照。
