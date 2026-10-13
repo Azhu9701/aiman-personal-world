@@ -1,0 +1,9 @@
+# Optional database/media adapter dependencies. Install only in your chosen
+# local Python environment; native libraries/build tools may be required.
+# A separately installed SQLCipher library can instead be configured with
+# configure --sqlcipher-library PATH. ffmpeg is an optional external executable.
+sqlcipher3
+Pillow
+cryptography
+zstandard
+pilk

@@ -1,0 +1,35 @@
+name: Bug report / 错误报告
+description: Report a bug with artificial data only.
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请只用人工数据。不要上传真实聊天、截图、联系人、密钥、凭据、数据库、媒体缓存或完整日志。
+        Use SECURITY.md for a suspected vulnerability or private-data exposure.
+  - type: checkboxes
+    id: private-data
+    attributes:
+      label: Privacy check / 隐私检查
+      options:
+        - label: This report contains only artificial data and no live credentials or personal records.
+          required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Version and environment
+      description: Project version, operating system, and Python version; no username or private path.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Synthetic reproduction
+      description: Minimal commands or manually written fixture, expected result, and observed behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Checks and limits
+      description: Safe error categories or counts; state any missing optional dependencies. Do not paste a complete log.

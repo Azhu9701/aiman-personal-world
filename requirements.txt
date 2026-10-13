@@ -1,0 +1,3 @@
+# Python 3.10+ standard library is sufficient for demo, open, serve, import,
+# verify, and archive browsing. No mandatory third-party packages.
+

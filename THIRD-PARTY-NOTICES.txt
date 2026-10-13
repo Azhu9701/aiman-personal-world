@@ -1,0 +1,53 @@
+Third-party source notices
+==========================
+
+WeChat local media format helpers
+--------------------------------
+
+The local image-key candidate derivation, V1/V2 DAT layout decoder, and image
+format fallbacks in enrich_media.py were developed with reference to, and adapt
+small portions of, media_pipeline.py in the following public toolkit. This
+notice retains that toolkit's published attribution and permission text.
+
+Project: macOS WeChat 4.x local toolkit
+Publisher: GitHub account acmerfight
+Source: https://gist.github.com/acmerfight/0a01249ef72970d07a2603dbb629e80f
+Source file: media_pipeline.py
+License file: LICENSE in the same Gist
+Source and license inspected: 2026-10-13
+
+The copyright holder below is transcribed from the published LICENSE; it is
+not inferred from the publisher's account name.
+
+MIT License
+
+Copyright (c) 2026 Contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+Runtime dependencies
+--------------------
+
+This source package does not redistribute the local vendor directory,
+dependency source code, dependency binaries, model weights, or user data.
+Pilk, Pillow, cryptography, SQLCipher bindings, FFmpeg and any other installed
+runtime components retain their own licenses. In particular, the toolkit's
+MIT license is not a license grant for those separate components. Keep the
+license and copyright files supplied with the independently installed vendor
+packages; consult those files before redistributing such packages or binaries.

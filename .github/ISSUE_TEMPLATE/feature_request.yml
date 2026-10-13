@@ -1,0 +1,25 @@
+name: Feature proposal / 功能建议
+description: Explain the user need, evidence, and privacy boundary.
+title: "[Feature] "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: User need
+      description: Describe a concrete task using a fictional example.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence and uncertainty
+      description: What source supports the result, what remains unknown, and how would the user verify it?
+    validations:
+      required: true
+  - type: textarea
+    id: privacy
+    attributes:
+      label: Data and action boundary
+      description: What stays local? Does the proposal introduce a network call, model, publishing, or an external action?
+    validations:
+      required: true

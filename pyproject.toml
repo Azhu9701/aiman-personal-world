@@ -1,0 +1,17 @@
+[project]
+name = "aiman-personal-world"
+version = "0.1.0"
+description = "A private, local archive and evidence workspace with human-reviewed actions"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+wechat = ["sqlcipher3", "Pillow", "cryptography", "zstandard", "pilk"]
+
+# Version 0.1 is distributed as a complete source directory. Keep the HTML,
+# example fixture and adapter modules beside personal_world.py. This metadata
+# does not declare a wheel build or installed console entry point.
+[tool.aiman-personal-world]
+distribution = "source-first"
+entrypoint = "python3 personal_world.py"
+
