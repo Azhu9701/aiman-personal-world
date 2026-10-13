@@ -8,6 +8,7 @@
 - Reuse a consistent SQLite backup and write only new/changed rows and changed FTS entries. Native WeChat extraction remains a fully checked snapshot.
 - Route configured refresh through cumulative merge and provide refresh --preview for review before publication.
 - Add monthly coverage and source/import batch inspection, with unknown and empty ranges explicitly distinguished.
+- Prevent a failed media re-read from erasing an existing available attachment: preserve the complete previous record/origin, and stop when message content also changed.
 - Add a durable archive/index publication journal, controlled recovery, source-change checks and reader pause during publication.
 - Extend synthetic tests and real Chromium file-selection/preview/commit coverage. No background watcher, data deletion UI, cloud inference or application-level encryption was added.
 

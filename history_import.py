@@ -26,6 +26,7 @@ FORMAT = 'personal-world.collection.v1'
 MAX_UPLOAD = 512 * 1024 * 1024
 PLAN_TTL = 24 * 3600
 POLICIES = ('keep_existing', 'prefer_incoming')
+MERGE_RULES_VERSION = 2
 
 
 def _json(value):
@@ -103,7 +104,7 @@ def _plan_dir(state,pid):
 def _public_plan(plan):
     return {'ok':True,'plan_id':plan['id'],'source_id':plan['source_id'],'policy':plan['policy'],
             'status':plan.get('status','preview'),'summary':plan['summary'],
-            'can_apply':plan['summary']['identity_conflicts']==0,'expires_at':plan['expires_at'],
+            'can_apply':plan['summary']['identity_conflicts']==0 and plan['summary'].get('media_content_conflicts',0)==0,'expires_at':plan['expires_at'],
             'scope_note':'只按明确来源中的稳定ID去重；缺少记录不代表删除，空白月份不代表没有聊天。原始规范来源保留在本机，不发送消息。'}
 
 
@@ -180,7 +181,8 @@ def _prepare_locked(source,state,*,source_id='primary',policy='keep_existing',la
             batches.append(bootstrap);paths[bootstrap['archive_sha256']]=state/'archive.jsonl'
         paths[input_batch['archive_sha256']]=candidate
         stats=Counter(messages_added=0,messages_changed=0,messages_unchanged=0,conflicts=0,
-                      kept_existing=0,identity_conflicts=0,conversations_added=0,conversations_changed=0)
+                      kept_existing=0,identity_conflicts=0,conversations_added=0,conversations_changed=0,
+                      media_downgrades_prevented=0,media_content_conflicts=0)
         scratch=folder/'records.sqlite'
         with contextlib.closing(sqlite3.connect(scratch)) as records:
             scratch.chmod(0o600)
@@ -209,6 +211,17 @@ def _prepare_locked(source,state,*,source_id='primary',policy='keep_existing',la
                     if kind=='message' and (old[0]!=normal['conversation_id'] or old[1]!=normal['timestamp']):
                         stats['identity_conflicts']+=1;continue
                     if kind=='message':stats['conflicts']+=1
+                    if kind=='message' and policy=='prefer_incoming':
+                        previous=json.loads(old[3])
+                        if previous.get('media_url') and not normal.get('media_url'):
+                            # Retain the whole old record and its exact origin;
+                            # do not create an untraceable field-level hybrid.
+                            if previous.get('type')==normal.get('type') and previous.get('text')==normal.get('text'):
+                                stats['media_downgrades_prevented']+=1
+                                stats['kept_existing']+=1
+                            else:
+                                stats['media_content_conflicts']+=1
+                            continue
                     if policy=='keep_existing':
                         if kind=='message':stats['kept_existing']+=1
                         continue
@@ -242,7 +255,7 @@ def _prepare_locked(source,state,*,source_id='primary',policy='keep_existing',la
             else:delta={'mode':'unchanged','rows_inserted':0,'rows_updated':0,'search_rows_written':0}
         scratch.unlink(missing_ok=True)
         if pair_digest(state)!=base:raise AppError('preview_source_changed','预览期间当前历史已变化，请重新检查。')
-        plan={'id':pid,'source_id':namespace,'policy':policy,'label':label.strip(),'summary':dict(stats),
+        plan={'id':pid,'merge_rules_version':MERGE_RULES_VERSION,'source_id':namespace,'policy':policy,'label':label.strip(),'summary':dict(stats),
               'status':'preview','created_at':int(time.time()),'expires_at':int(time.time())+PLAN_TTL,
               'base':base,'input_batch':input_batch,'bootstrap_batch':bootstrap,'changed':changed,'delta':delta,
               'output':pair_digest(folder/'output') if changed else None}
@@ -359,10 +372,14 @@ def _commit_locked(pid,state):
         if meta.get('archive_format')==FORMAT and any(item.get('id')==pid for item in meta.get('import_history',[])):
             result={'ok':True,'status':'merged','summary':plan['summary'],'delta':plan['delta'],'validation':plan['input_batch']['validation'],'recovered_commit':True}
             plan.update(status='committed',result=result);atomic_json(folder/'plan.json',plan);return result
+    if plan.get('merge_rules_version')!=MERGE_RULES_VERSION:
+        raise AppError('plan_stale','合并规则已升级，请重新预览，避免旧预览覆盖已有可用附件。')
     if time.time()>plan['expires_at']:raise AppError('plan_expired','预览已过期，请重新检查文件。')
     if pair_digest(state)!=plan['base']:raise AppError('plan_stale','当前历史已更新；旧预览不会覆盖，请重新检查。')
     if plan['summary']['identity_conflicts']:
         raise AppError('identity_conflict','相同消息编号指向不同会话或时间。请核实来源，必要时使用独立来源标识；不会覆盖原记录。')
+    if plan['summary'].get('media_content_conflicts',0):
+        raise AppError('identity_conflict','已有附件变缺失且正文或类型变化，请先核查，不能自动决定覆盖。')
     if plan['changed']:
         if pair_digest(folder/'output')!=plan['output']:raise AppError('preview_changed','预览产物已变化，请重新检查。')
         sources=state/'import-sources';private_dir(sources)

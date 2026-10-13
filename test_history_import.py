@@ -143,6 +143,31 @@ class HistoryTests(unittest.TestCase):
         self.assertEqual(history.catalog(self.state)['pending_previews'],[])
         self.assertEqual(self.pair(),before)
 
+    def media_source(self,changed_text=False):
+        media=self.state/'media';app_config.private_dir(media)
+        blob=media/'synthetic-voice.wav';blob.write_bytes(b'RIFF-synthetic-media-fixture');blob.chmod(0o600)
+        row=dict(self.original[0],media_url='/api/media/synthetic-voice.wav',media_status='available',file_size=blob.stat().st_size,type='voice')
+        cli.import_state(self.source([row,self.original[1]]),self.state,no_open=True)
+        new=dict(row,media_url=None,media_status='silk_decoder_unavailable',file_size=None)
+        if changed_text:new['text']='人工更改的语音说明'
+        return self.source([new])
+    def test_failed_media_reread_never_downgrades_existing_cached_record(self):
+        source=self.media_source();before=self.pair();plan=self.prepare(source,policy='prefer_incoming')
+        self.assertTrue(plan['can_apply']);self.assertEqual(plan['summary']['media_downgrades_prevented'],1)
+        self.assertEqual(plan['summary']['messages_changed'],0);self.commit(plan)
+        self.assertEqual(self.pair(),before)
+    def test_media_loss_with_changed_content_requires_explicit_review(self):
+        source=self.media_source(changed_text=True);before=self.pair();plan=self.prepare(source,policy='prefer_incoming')
+        self.assertFalse(plan['can_apply']);self.assertEqual(plan['summary']['media_content_conflicts'],1)
+        with self.assertRaises(app_config.AppError):self.commit(plan)
+        self.assertEqual(self.pair(),before)
+    def test_old_rule_preview_cannot_apply_after_protection_upgrade(self):
+        plan=self.prepare(self.source([self.message('a','人工新记录',1735862400)]));before=self.pair()
+        path=self.state/'import-plans'/plan['plan_id']/'plan.json'
+        doc=json.loads(path.read_text());doc.pop('merge_rules_version');app_config.atomic_json(path,doc)
+        with self.assertRaises(app_config.AppError) as error:self.commit(plan)
+        self.assertEqual(error.exception.code,'plan_stale');self.assertEqual(self.pair(),before)
+
 
 class PublicationTests(unittest.TestCase):
     def setUp(self):

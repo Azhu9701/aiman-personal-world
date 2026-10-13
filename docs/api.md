@@ -130,7 +130,7 @@ await fetch('/api/world/review', {
 - `POST /api/world/import/apply`：JSON `{"plan_id":"..."}`；核对后确认已生成的预览。旧预览遇到当前数据变化返回409，不能自动重试覆盖。重复确认同一已完成预览返回原批次结果，不重复导入。
 - `POST /api/world/import/cancel`：同样传 plan_id，只删除未确认的预览产物，不删除已导入历史和来源快照。
 
-summary 区分 messages_added、messages_changed、messages_unchanged、conflicts、kept_existing、identity_conflicts、conversations_added、conversations_changed、before_messages、after_messages 以及合并后首尾时间戳。相同编号且会话或时间不一致属于身份冲突，无论更新策略如何都不能直接确认。
+summary 区分 messages_added、messages_changed、messages_unchanged、conflicts、kept_existing、identity_conflicts、conversations_added、conversations_changed、before_messages、after_messages 以及合并后首尾时间戳。media_downgrades_prevented 表示为避免附件退化而保留完整原记录的数量；media_content_conflicts 表示附件缺失且正文/类型又变化、需阻止确认的数量。相同编号且会话或时间不一致属于身份冲突，无论更新策略如何都不能直接确认。
 
 确认结果的 delta 包含 mode、rows_inserted、rows_updated、search_rows_written。copy_on_write_delta 表示复制当前索引后增量写入；不表示原生微信解密或输入校验已只处理新增记录。validation 描述输入验证层，最终集合另有来源映射和索引校验。
 

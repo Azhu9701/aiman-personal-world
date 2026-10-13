@@ -191,7 +191,7 @@
         <p class="field-note">primary：当前账号与相同稳定消息编号。其他账号或不同导出器请另起标识，例如 old-export；不同来源会分开展示，不按同名联系人猜测合并。</p>
         <label class="field-note" style="display:block;margin-top:12px"><input type="checkbox" id="history-import-identity"> 我确认 primary 文件属于当前账号，并沿用相同的稳定消息编号体系。</label>
         <div class="field"><label for="history-import-policy">相同编号的文字或附件信息不一致时</label><select id="history-import-policy"><option value="keep_existing">保留现有内容（补旧历史推荐）</option><option value="prefer_incoming">采用此次导入内容（旧内容仍保留在来源快照）</option></select></div>
-        <p class="field-note">相同编号若指向不同会话或不同时间，会阻止确认。只有你明确选择独立来源后才能分开导入。</p>
+        <p class="field-note">相同编号若指向不同会话或不同时间，会阻止确认。旧附件可用但此次读取失败时，会保留整条旧记录；若正文同时变化，则停下核查。</p>
         <p class="field-note" id="history-import-progress" role="status" aria-live="polite"></p>
         <div id="history-import-preview" hidden></div><p class="form-error" id="history-import-error" hidden></p>
         <details class="related-leads"><summary>月份覆盖与历史导入批次</summary><div id="history-import-catalog"></div></details>
@@ -484,8 +484,8 @@
       }catch(error){errorBox(box,error.message,loadHistoryCatalog);}
     }
     function renderImportPreview(plan) { const box=$('history-import-preview');box.hidden=!plan;box.replaceChildren();if(!plan)return;const summary=plan.summary||{},table=el('table','data-table'),body=el('tbody');
-      [['现有消息',summary.before_messages],['此次新增',summary.messages_added],['相同编号且内容相同',summary.messages_unchanged],['不同内容',summary.conflicts],['将保留原内容',summary.kept_existing],['将更新内容',summary.messages_changed],['编号身份冲突',summary.identity_conflicts],['合并后消息',summary.after_messages]].forEach(function(pair){const row=el('tr');row.append(el('td','',pair[0]),el('td','',n(pair[1])));body.append(row);});table.append(body);box.append(table,el('p','field-note','合并后范围：'+day(summary.first_timestamp)+' — '+day(summary.last_timestamp)));
-      if(!plan.can_apply)box.append(el('p','form-error','检测到编号身份冲突。核实账号和导出器，或使用独立来源标识后重新预览。'));
+      [['现有消息',summary.before_messages],['此次新增',summary.messages_added],['相同编号且内容相同',summary.messages_unchanged],['不同内容',summary.conflicts],['将保留原内容',summary.kept_existing],['将更新内容',summary.messages_changed],['已保留原有可用附件',summary.media_downgrades_prevented],['附件与正文冲突',summary.media_content_conflicts],['编号身份冲突',summary.identity_conflicts],['合并后消息',summary.after_messages]].forEach(function(pair){const row=el('tr');row.append(el('td','',pair[0]),el('td','',n(pair[1])));body.append(row);});table.append(body);box.append(table,el('p','field-note','合并后范围：'+day(summary.first_timestamp)+' — '+day(summary.last_timestamp)));
+      if(!plan.can_apply)box.append(el('p','form-error','检测到身份或附件内容冲突，请核实来源再重新预览，不会自动覆盖。'));
     }
     async function prepareHistoryImport(event) { event.preventDefault();if(S.historyBusy)return;const file=$('history-import-file').files[0],source=$('history-import-source').value,policy=$('history-import-policy').value;
       $('history-import-error').hidden=true;
