@@ -105,7 +105,7 @@ class CLITests(unittest.TestCase):
         code, result, _ = self.invoke(["--state", str(self.state), "import", str(self.source), "--no-open"])
         self.assertEqual(code, 0)
         self.assertEqual(result["validation"], "normalized_archive")
-        with sqlite3.connect(self.state / "index.sqlite") as db:
+        with contextlib.closing(sqlite3.connect(self.state / "index.sqlite")) as db, db:
             self.assertEqual(db.execute("SELECT is_self,timestamp,media_status FROM messages").fetchone(),
                              (0, server.numeric_time("2026-10-13T00:00:00+08:00"), "metadata_only"))
         self.assertTrue(cli.verify_state(self.state)["ok"])
@@ -148,7 +148,7 @@ class CLITests(unittest.TestCase):
     def test_viewer_conversation_export_is_reimportable_with_provided_archive_scope(self):
         self.write_source(fixture(native=True))
         self.imported()
-        with sqlite3.connect(self.state / "index.sqlite") as db:
+        with contextlib.closing(sqlite3.connect(self.state / "index.sqlite")) as db, db:
             db.row_factory = sqlite3.Row
             document = {"conversation": server.public_row(db.execute("SELECT * FROM conversations").fetchone()),
                         "messages": [server.public_row(row) for row in db.execute("SELECT * FROM messages ORDER BY timestamp,id")]}
@@ -174,7 +174,7 @@ class CLITests(unittest.TestCase):
         self.write_source(document)
         self.imported()
         self.assertTrue(cli.verify_state(self.state)["ok"])
-        with sqlite3.connect(self.state / "index.sqlite") as db:
+        with contextlib.closing(sqlite3.connect(self.state / "index.sqlite")) as db, db:
             db.execute("UPDATE messages SET text='changed',media_status='available'")
             db.execute("UPDATE conversations SET avatar_url=NULL")
         result = cli.verify_state(self.state)

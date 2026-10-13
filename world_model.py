@@ -130,10 +130,10 @@ class WorldModel:
     def index(self):
         path = (self.state / "index.sqlite").resolve()
         conn = sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=5)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA query_only=ON")
-        conn.execute("BEGIN")  # One consistent source snapshot per operation.
         try:
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA query_only=ON")
+            conn.execute("BEGIN")  # One consistent source snapshot per operation.
             yield conn
         finally:
             conn.close()
@@ -158,31 +158,32 @@ class WorldModel:
             if os.name == "posix" and stat.S_IMODE(path.stat().st_mode) & 0o077:
                 raise ValueError("工作台文件权限必须仅限本人")
             conn = sqlite3.connect(path, timeout=10)
-            conn.executescript("""
-                CREATE TABLE IF NOT EXISTS reviews (
-                    id TEXT PRIMARY KEY, status TEXT NOT NULL, note TEXT NOT NULL,
-                    updated_at INTEGER NOT NULL, anchor_id TEXT NOT NULL,
-                    source_fingerprint TEXT NOT NULL);
-                CREATE TABLE IF NOT EXISTS drafts (
-                    id TEXT PRIMARY KEY, opportunity_id TEXT NOT NULL,
-                    title TEXT NOT NULL, body TEXT NOT NULL,
-                    evidence_ids TEXT NOT NULL, created_at INTEGER NOT NULL,
-                    source_fingerprint TEXT NOT NULL);
-            """)
         else:
             conn = sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True, timeout=5)
-            conn.execute("PRAGMA query_only=ON")
-        conn.row_factory = sqlite3.Row
-        try:
-            yield conn
+        with contextlib.closing(conn):
             if write:
-                conn.commit()
-        except Exception:
-            if write:
-                conn.rollback()
-            raise
-        finally:
-            conn.close()
+                conn.executescript("""
+                    CREATE TABLE IF NOT EXISTS reviews (
+                        id TEXT PRIMARY KEY, status TEXT NOT NULL, note TEXT NOT NULL,
+                        updated_at INTEGER NOT NULL, anchor_id TEXT NOT NULL,
+                        source_fingerprint TEXT NOT NULL);
+                    CREATE TABLE IF NOT EXISTS drafts (
+                        id TEXT PRIMARY KEY, opportunity_id TEXT NOT NULL,
+                        title TEXT NOT NULL, body TEXT NOT NULL,
+                        evidence_ids TEXT NOT NULL, created_at INTEGER NOT NULL,
+                        source_fingerprint TEXT NOT NULL);
+                """)
+            else:
+                conn.execute("PRAGMA query_only=ON")
+            conn.row_factory = sqlite3.Row
+            try:
+                yield conn
+                if write:
+                    conn.commit()
+            except Exception:
+                if write:
+                    conn.rollback()
+                raise
 
     def reviews(self):
         with self._lock, self.workspace() as conn:

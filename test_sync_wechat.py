@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import importlib.util
 import json
@@ -164,12 +165,12 @@ class ExportTests(unittest.TestCase):
     def metadata(self) -> None:
         contact = self.root / "contact" / "contact.db"
         contact.parent.mkdir()
-        with sqlite3.connect(contact) as connection:
+        with contextlib.closing(sqlite3.connect(contact)) as connection, connection:
             connection.execute("CREATE TABLE contact(username TEXT PRIMARY KEY, nick_name TEXT, remark TEXT)")
             connection.executemany("INSERT INTO contact VALUES (?,?,?)", [("self_user", "自己", ""), ("peer", "示例联系人", "备注名"), ("group@chatroom", "示例群", ""), ("gh_demo", "示例公众号", ""), ("empty_peer", "空会话", "")])
         session = self.root / "session" / "session.db"
         session.parent.mkdir()
-        with sqlite3.connect(session) as connection:
+        with contextlib.closing(sqlite3.connect(session)) as connection, connection:
             connection.execute("CREATE TABLE SessionTable(username TEXT PRIMARY KEY, last_timestamp INTEGER)")
             connection.executemany("INSERT INTO SessionTable VALUES (?,?)", [("peer", 1700000000), ("empty_peer", 1700000000)])
 
@@ -246,16 +247,37 @@ class ExportTests(unittest.TestCase):
 
     def test_unreadable_compressed_row_is_counted_but_never_claimed_decoded(self) -> None:
         main = self.shard()
-        message_table(main, "peer", [(1, 1, 1, 19, 1700000000, b"not-a-zstd-stream-PRIVATE_PAYLOAD", 4)])
-        summary = exporter.sync(self.root, self.keys, self.output)
-        self.assertTrue(summary["complete"])
-        self.assertFalse(summary["content_complete"])
-        records = self.read()
-        message = next(record for record in records if record["record_type"] == "message")
-        self.assertEqual(message["decode_status"], "decompression_failed")
-        self.assertIsNone(message["is_self"])
-        self.assertNotIn("PRIVATE_PAYLOAD", self.output.read_text())
-        self.assertEqual(records[-1]["message_count"], 1)
+        payload = b"not-a-zstd-stream-PRIVATE_PAYLOAD"
+        message_table(main, "peer", [(1, 1, 1, 19, 1700000000, payload, 4)])
+        original_import = exporter.importlib.import_module
+        for case, expected in (("missing_decoder", "decompressor_missing"),
+                               ("malformed_stream", "decompression_failed")):
+            with self.subTest(case=case):
+                zstandard = mock.Mock(spec=["ZstdDecompressor"])
+                zstandard.ZstdDecompressor.return_value.stream_reader.side_effect = ValueError("synthetic malformed frame")
+
+                def import_decoder(name, package=None):
+                    if name == "zstandard" and case == "malformed_stream":
+                        return zstandard
+                    if name in ("zstandard", "compression.zstd"):
+                        raise ImportError("synthetic decoder unavailable")
+                    return original_import(name, package)
+
+                with mock.patch.object(exporter.importlib, "import_module", side_effect=import_decoder):
+                    summary = exporter.sync(self.root, self.keys, self.output)
+                self.assertTrue(summary["complete"])
+                self.assertFalse(summary["content_complete"])
+                records = self.read()
+                message = next(record for record in records if record["record_type"] == "message")
+                manifest = records[-1]
+                self.assertEqual(message["decode_status"], expected)
+                self.assertIsNone(message["is_self"])
+                self.assertNotIn("PRIVATE_PAYLOAD", self.output.read_text())
+                self.assertNotIn(payload.decode("ascii"), self.output.read_text())
+                self.assertEqual(manifest["message_count"], 1)
+                self.assertTrue(manifest["complete"])
+                self.assertFalse(manifest["content_complete"])
+                self.assertEqual(manifest["decode_status_counts"], {expected: 1})
 
     def test_changing_wal_is_rejected_without_replacing_archive(self) -> None:
         main = self.shard()

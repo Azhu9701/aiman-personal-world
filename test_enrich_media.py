@@ -1,6 +1,7 @@
 """Synthetic media only; never discovers a real account or accesses a network."""
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import importlib.util
 import io
@@ -69,7 +70,7 @@ class MediaTests(unittest.TestCase):
     def hardlinks(self, entries):
         path = self.root / "hardlink/hardlink.db"
         path.parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(path) as db:
+        with contextlib.closing(sqlite3.connect(path)) as db, db:
             db.execute("CREATE TABLE dir2id(username TEXT PRIMARY KEY)")
             db.executemany("INSERT INTO dir2id(rowid,username) VALUES (?,?)", [(1, hashlib.md5(b"peer").hexdigest()), (2, "2023-11")])
             for family in ("image", "video", "file"):
@@ -122,14 +123,14 @@ class MediaTests(unittest.TestCase):
         with wave.open(voice, "wb") as out:
             out.setnchannels(1); out.setsampwidth(2); out.setframerate(24000)
             out.writeframes(b"\0\0" * 4800)
-        with sqlite3.connect(self.root / "message/media_0.db") as db:
+        with contextlib.closing(sqlite3.connect(self.root / "message/media_0.db")) as db, db:
             db.execute("CREATE TABLE Name2Id(user_name TEXT PRIMARY KEY)")
             db.execute("INSERT INTO Name2Id(rowid,user_name) VALUES (1,'peer')")
             db.execute("CREATE TABLE VoiceInfo(chat_name_id INTEGER,create_time INTEGER,local_id INTEGER,svr_id INTEGER,voice_data BLOB)")
             db.execute("INSERT INTO VoiceInfo VALUES (1,1700000003,4,103,?)", (voice.getvalue(),))
         path = self.root / "head_image/head_image.db"
         path.parent.mkdir()
-        with sqlite3.connect(path) as db:
+        with contextlib.closing(sqlite3.connect(path)) as db, db:
             db.execute("CREATE TABLE head_image(username TEXT PRIMARY KEY,md5 TEXT,image_buffer BLOB,update_time INTEGER)")
             db.execute("INSERT INTO head_image VALUES ('peer','',?,0)", (images[0][0],))
         self.export()
@@ -156,7 +157,7 @@ class MediaTests(unittest.TestCase):
             self.assertEqual(path.stat().st_mode & 0o777, 0o600)
         imported = server.import_archive(self.archive, self.state)
         self.assertEqual(imported["message_count"], 6)
-        with sqlite3.connect(self.state / "index.sqlite") as db:
+        with contextlib.closing(sqlite3.connect(self.state / "index.sqlite")) as db, db:
             self.assertEqual(db.execute("SELECT count(*) FROM messages WHERE media_url IS NOT NULL").fetchone()[0], 4)
             self.assertEqual(db.execute("SELECT count(*) FROM conversations WHERE avatar_url IS NOT NULL").fetchone()[0], 1)
         again = self.run_enrich(app_data=app_data)

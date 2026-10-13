@@ -7,6 +7,7 @@ import sqlite3
 import tempfile
 import threading
 import unittest
+from unittest import mock
 from urllib.parse import urlencode
 
 import server
@@ -63,6 +64,12 @@ class ArchiveTests(unittest.TestCase):
         self.assertEqual(info["message_count"], 254)
         self.assertEqual(info["conversation_count"], 2)
         self.assertTrue(info["ready"])
+
+    def test_loopback_startup_does_not_depend_on_reverse_dns(self):
+        with mock.patch("socket.getfqdn", side_effect=OSError("Synthetic DNS unavailable")):
+            with server.ViewerServer(0, self.state, self.token) as local:
+                self.assertEqual(local.server_address[0], "127.0.0.1")
+                self.assertGreater(local.server_address[1], 0)
 
     def test_cursor_pages_no_loss_or_duplicates_at_identical_timestamps(self):
         ids, before = [], ""

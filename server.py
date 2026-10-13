@@ -19,6 +19,7 @@ import mimetypes
 import os
 from pathlib import Path
 import secrets
+import socketserver
 import sqlite3
 import stat
 import sys
@@ -120,10 +121,10 @@ def import_archive(source: Path, state: Path) -> dict:
     private_dir(state)
     tmp = state / ("index-building-" + secrets.token_hex(6) + ".sqlite")
     conn = sqlite3.connect(tmp)
-    tmp.chmod(0o600)
-    message_count = 0
-    manifest = {}
     try:
+        tmp.chmod(0o600)
+        message_count = 0
+        manifest = {}
         conn.executescript(SCHEMA)
         conn.execute("BEGIN")
         for rec in source_records(source):
@@ -198,9 +199,9 @@ def import_archive(source: Path, state: Path) -> dict:
 def read_index(state: Path):
     path = state / "index.sqlite"
     conn = sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=5)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA query_only=ON")
     try:
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA query_only=ON")
         yield conn
     finally:
         conn.close()
@@ -265,6 +266,13 @@ def status_data(state):
 class ViewerServer(http.server.ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = True
+
+    def server_bind(self):
+        # HTTPServer normally calls getfqdn() here. This loopback-only service
+        # has a fixed local name and must start even when reverse DNS stalls.
+        socketserver.TCPServer.server_bind(self)
+        self.server_name = "localhost"
+        self.server_port = self.server_address[1]
 
     def __init__(self, port, state, token):
         self.state, self.token = state, token
