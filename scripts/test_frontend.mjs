@@ -168,7 +168,7 @@ async function bootstrap(name, url) {
     fetch:(path,options={})=>{const entry={path,options};requests.push(entry);const op=fetch(new URL(path,config.base),Object.assign({},options,{headers:Object.assign({},options.headers,{Cookie:config.cookie,Origin:config.base})})).then(async response=>{entry.responseStatus=response.status;const data=await response.json();const modified=modify?modify(path,data):data;return {ok:response.ok,status:response.status,json:async()=>modified};});return track(op);},
     matchMedia:()=>({matches:false,addEventListener(){}}),
     addEventListener:(event,fn)=>{(handlers[event]||=[]).push(fn);},
-    isSecureContext:true,innerWidth:1300,innerHeight:900
+    confirm:()=>true,isSecureContext:true,innerWidth:1300,innerHeight:900
   }; context.window=context;context.self=context;context.Element=Node;context.HTMLElement=Node;
   vm.createContext(context);vm.runInContext(fs.readFileSync(path.join(environment.tempRoot,name+'-script.js'),'utf8'),context,{timeout:5000});await settle();return context;
 }
@@ -190,6 +190,20 @@ async function runChecks() {
   check('explicit review POST and local status update',()=>{assert(!byId('review-dialog').open);assert(byId('opportunity-list').textContent.includes('UI_SYNTHETIC_REVIEW'));assert(requests.some(r=>r.path==='/api/world/review'&&r.options.method==='POST'&&JSON.parse(r.options.body).status==='follow_up'&&typeof JSON.parse(r.options.body).source_fingerprint==='string'));});
   action(byId('opportunity-list').querySelector('.opportunity'),'拟跟进草稿').click();await settle();
   check('draft POST creates editable unsent rule template',()=>{assert(byId('draft-dialog').open);assert(byId('draft-body').value.includes('固定模板'));assert(requests.some(r=>r.path==='/api/world/draft'&&r.options.method==='POST'&&typeof JSON.parse(r.options.body).source_fingerprint==='string'));assert(byId('draft-list').textContent.includes('未发送'));});
+  byId('draft-title-input').value='UI_SAVED_TITLE';byId('draft-title-input').dispatchEvent({type:'input'});
+  byId('draft-body').value='UI_SAVED_BODY <script>literal only</script>';byId('draft-body').dispatchEvent({type:'input'});byId('draft-save').click();await settle();
+  check('edited title and body are persisted with revision history',()=>{assert(byId('draft-save-status').textContent.includes('第 2 版'));assert(byId('draft-history-list').textContent.includes('原始生成版'));assert(byId('draft-list').textContent.includes('UI_SAVED_TITLE'));assert.strictEqual(byId('draft-history-list').querySelectorAll('script').length,0);assert(requests.some(r=>r.path==='/api/world/draft/edit'&&JSON.parse(r.options.body).expected_revision===1&&r.responseStatus===200));});
+  byId('draft-dialog').close();await bootstrap('world',config.base+'/#workbench');byId('draft-list').querySelector('button').click();await settle();
+  check('page reload retrieves saved edits instead of the generated template',()=>{assert.strictEqual(byId('draft-title-input').value,'UI_SAVED_TITLE');assert(byId('draft-body').value.startsWith('UI_SAVED_BODY'));assert(byId('review-ledger-list').textContent.includes('UI_SYNTHETIC_REVIEW'));});
+  const apiHeaders={'Content-Type':'application/json',Cookie:config.cookie,Origin:config.base};
+  const liveDraft=(await (await fetch(config.base+'/api/world/drafts',{headers:apiHeaders})).json()).items[0];
+  const competing=await fetch(config.base+'/api/world/draft/edit',{method:'POST',headers:apiHeaders,body:JSON.stringify({id:liveDraft.id,title:'OTHER_WINDOW_TITLE',body:'OTHER_WINDOW_SAVED',expected_revision:liveDraft.revision,source_fingerprint:liveDraft.source_fingerprint})});assert.strictEqual(competing.status,200);
+  byId('draft-body').value='MY_UNSAVED_CONFLICT';byId('draft-body').dispatchEvent({type:'input'});byId('draft-save').click();await settle();
+  check('concurrent edit conflict preserves unsaved local text',()=>{assert.strictEqual(byId('draft-body').value,'MY_UNSAVED_CONFLICT');assert(!byId('draft-error').hidden);assert(byId('draft-error').textContent.includes('其他窗口'));assert(requests.some(r=>r.path==='/api/world/draft/edit'&&r.responseStatus===409));});
+  let unloadGuard=false;const unload={preventDefault(){unloadGuard=true;}};handlers.beforeunload.at(-1)(unload);
+  check('page exit warns when edits are not saved',()=>assert(unloadGuard));
+  byId('draft-reload').click();await settle();
+  check('explicit reload reads latest saved revision after conflict',()=>{assert.strictEqual(byId('draft-body').value,'OTHER_WINDOW_SAVED');assert.strictEqual(byId('draft-title-input').value,'OTHER_WINDOW_TITLE');assert(byId('draft-save-status').textContent.includes('第 3 版'));});
   byId('draft-dialog').close();modify=(path,data)=>{if(path==='/api/world/drafts'&&data.items?.length){data.items[0].source_stale=true;data.items[0].source_note='SYNTHETIC_CHANGED_SOURCE';}return data;};byId('refresh-drafts').click();await settle();
   check('stale draft source warning shown',()=>{assert(byId('draft-list').textContent.includes('依据已变化'));});modify=null;
   document.querySelector('[data-view="timeline"]').click();await settle();byId('timeline-all').click();await settle();

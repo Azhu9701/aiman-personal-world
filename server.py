@@ -28,7 +28,7 @@ import time
 import urllib.parse
 
 from app_config import APP_ID, VERSION, DEFAULT_PORT, ACCESS_FILE, default_state, state_id, private_dir as ensure_private_dir
-from world_model import WorldModel, SourceChangedError
+from world_model import WorldModel, SourceChangedError, DraftConflictError
 
 APP_DIR = Path(__file__).resolve().parent
 DEFAULT_STATE = default_state()
@@ -358,6 +358,11 @@ class ViewerHandler(http.server.BaseHTTPRequestHandler):
                 return self.json_response(self.server.world.overview())
             if split.path == "/api/world/drafts":
                 return self.json_response(self.server.world.drafts())
+            if split.path == "/api/world/draft":
+                before=first_arg(params,"before")
+                return self.json_response(self.server.world.draft(first_arg(params,"id"),int(before) if before else None,max(1,bound_int(params,"limit",20,100))))
+            if split.path == "/api/world/reviews":
+                return self.json_response(self.server.world.review_ledger(max(1,bound_int(params,"limit",100,500)),bound_int(params,"offset",0,10**8)))
             if split.path.startswith("/api/media/"):
                 return self.serve_media(split.path)
             if not (self.server.state / "index.sqlite").exists():
@@ -402,7 +407,7 @@ class ViewerHandler(http.server.BaseHTTPRequestHandler):
         return self.json_response(result)
 
     def do_POST(self):
-        # These two endpoints alter only personal review state, never WeChat,
+        # These endpoints alter only personal review state, never WeChat,
         # the archive, the index, or an external account. Every browser write
         # needs both the private cookie and the exact same Origin.
         if not self.allowed_host():
@@ -413,13 +418,13 @@ class ViewerHandler(http.server.BaseHTTPRequestHandler):
         if self.headers.get("Origin") != expected or self.headers.get("Sec-Fetch-Site") in ("cross-site", "same-site"):
             return self.json_response({"error": "本地工作台修改需要同源请求"}, 403)
         path = urllib.parse.urlsplit(self.path).path
-        if path not in ("/api/world/review", "/api/world/draft"):
+        if path not in ("/api/world/review", "/api/world/draft", "/api/world/draft/edit"):
             return self.json_response({"error": "仅支持本地人工标记和草稿；没有发送或写入微信的接口"}, 405)
         try:
             if self.headers.get("Transfer-Encoding") or self.headers.get("Content-Type", "").split(";", 1)[0].strip() != "application/json":
                 return self.json_response({"error": "需要 JSON 请求"}, 415)
             length = int(self.headers.get("Content-Length", "0"))
-            if not 0 < length <= 32768:
+            if not 0 < length <= 131072:
                 return self.json_response({"error": "请求体过大或为空"}, 413)
             self.connection.settimeout(10)
             body = json.loads(self.rfile.read(length))
@@ -430,9 +435,13 @@ class ViewerHandler(http.server.BaseHTTPRequestHandler):
                 raise ValueError("source_fingerprint")
             if path == "/api/world/review":
                 result = self.server.world.save_review(body.get("id"), body.get("status"), body.get("note", ""), fingerprint)
+            elif path == "/api/world/draft/edit":
+                result = self.server.world.save_draft(body.get("id"),body.get("title"),body.get("body"),body.get("expected_revision"),fingerprint)
             else:
                 result = self.server.world.create_draft(body.get("id"), fingerprint)
             return self.json_response(result)
+        except DraftConflictError:
+            return self.json_response({"error":"草稿已在其他窗口更新；未覆盖最新版本，你的修改仍保留。请重新读取后合并。","code":"draft_conflict"},409)
         except SourceChangedError:
             return self.json_response({"error": "依据已变化，请重新检索并复核", "code": "source_changed"}, 409)
         except KeyError:

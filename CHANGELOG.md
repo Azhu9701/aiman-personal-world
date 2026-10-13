@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.1 — 2026-10-13
+
+- Persist edited draft titles and bodies in an append-only revision table; preserve generated v1 rows and read old workspaces without migration.
+- Reject conflicting saves across windows/processes; retain local input, allow explicit reload, and preserve all saved revisions.
+- Recheck source versions around draft writes and reject edits when source evidence or reviewed counterpart visibility has changed.
+- Exclude completed/dismissed/stale reviewed counterparts from related recommendations and newly generated templates without changing source fingerprints.
+- Add a paginated review ledger that preserves annotations even when current source records cannot be located.
+- Add authenticated draft detail/history and edit endpoints; keep all actions local with no message-send API.
+- Extend synthetic workflow/DOM tests and add isolated real-Chromium rendering, save/reload and mobile-width smoke tests.
+
+
 ## v0.1.0 · 2026-10-13
 
 Initial source release of AIMAN Personal World, an early local evidence workspace.
