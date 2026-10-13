@@ -58,6 +58,24 @@ class ReleaseCheckTests(unittest.TestCase):
         self.write("examples/profile-demo.json", json.dumps(document))
         self.assertIn("synthetic_example_message_invalid", self.codes())
 
+    def test_plugin_manifest_is_narrow_and_cannot_hide_runtime_data(self):
+        package=json.loads((APP/'package.json').read_text())
+        self.write('package.json',json.dumps(package))
+        self.assertTrue(self.scan()['ok'])
+        package['events']=[{'title':'private appointment'}]
+        self.write('package.json',json.dumps(package))
+        self.assertIn('plugin_manifest_contract_invalid',self.codes())
+
+    def test_plugin_package_cannot_expand_to_private_files_or_install_scripts(self):
+        package=json.loads((APP/'package.json').read_text())
+        for change in ('files','scripts','description'):
+            value=json.loads(json.dumps(package))
+            if change=='files':value['files'].append('agenda-state.json')
+            elif change=='scripts':value['scripts']['postinstall']='run anything'
+            else:value['description']='private data pretending to be metadata'
+            self.write('package.json',json.dumps(value))
+            self.assertIn('plugin_manifest_contract_invalid',self.codes())
+
     def test_agenda_state_is_private_runtime_data(self):
         self.write('agenda-state.json',json.dumps({'revision':0,'events':{}}))
         self.assertIn('forbidden_runtime_artifact',self.codes())

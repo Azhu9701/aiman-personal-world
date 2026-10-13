@@ -48,5 +48,8 @@ jobs:
       - name: Synthetic DOM and local API integration
         if: matrix.frontend
         run: node scripts/test_frontend.mjs
+      - name: Harness plugin contracts and privacy boundaries
+        if: matrix.frontend
+        run: node --test dsh-plugin/test/*.test.js
       - name: Check the public source release set
         run: python3 -B scripts/release_check.py

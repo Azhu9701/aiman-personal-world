@@ -1,5 +1,12 @@
 # Changelog
 
+## DeepSeek Harness plugin preview
+
+- Package the complete local workspace as @aiman-world/dsh-personal-world for DSH 0.2.0-rc.2 using native host and client contracts.
+- Expose eight local module links and two non-private status/navigation tools. No private chat-to-model bridge, calendar writes or automatic invitations are included.
+- Declare the official client renderer/sidebar dependencies and wait for the slots service before mounting the native sidebar entry.
+- Add strict public npm manifest validation, plugin contract tests and an isolated real-Harness browser check.
+
 ## 0.4.0 — Agenda preview
 
 - Add message-anchored Chinese date hints with explicit ambiguity, source identity and possible cancellation/change context.
