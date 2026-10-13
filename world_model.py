@@ -19,6 +19,8 @@ import sqlite3
 import stat
 import threading
 import time
+import draft_store
+from draft_store import DraftConflictError
 
 ZONE = dt.timezone(dt.timedelta(hours=8))
 DAY = 86400
@@ -173,6 +175,8 @@ class WorldModel:
                         evidence_ids TEXT NOT NULL, created_at INTEGER NOT NULL,
                         source_fingerprint TEXT NOT NULL);
                 """)
+                draft_store.ensure_schema(conn)
+                conn.execute("BEGIN IMMEDIATE")
             else:
                 conn.execute("PRAGMA query_only=ON")
             conn.row_factory = sqlite3.Row
@@ -406,24 +410,77 @@ class WorldModel:
             self._cache[cache_key] = result
             return result
 
+    @staticmethod
+    def _present_candidate(original, reviews, candidates):
+        # Derived visibility is never written into the evidence cache and never
+        # changes its source fingerprint. Human edits are not new source facts.
+        item = {**original, "review_stale": False}
+        review = reviews.get(item["id"])
+        if review:
+            item.update(status=review["status"], review_note=review["note"],
+                        review_stale=review["source_fingerprint"] != item["source_fingerprint"])
+        item["effective_status"] = "needs_review" if item["review_stale"] else item["status"]
+        visible=[]
+        for lead in original.get("related_leads", []):
+            peer=reviews.get(lead["id"])
+            source=candidates.get(lead["id"])
+            if source is None:
+                continue
+            # Closed or stale peers require an explicit new review before
+            # being suggested as a current counterpart again.
+            if peer and (peer["status"] in ("dismissed", "completed") or peer["source_fingerprint"] != source["source_fingerprint"]):
+                continue
+            visible.append(dict(lead))
+        item["related_leads"] = visible
+        item["hidden_related_leads"] = len(original.get("related_leads", [])) - len(visible)
+        return item
+
     def opportunities(self, query="机器人", start="", end="", limit=50, status=""):
+        if status not in ("", "active", *STATUSES):
+            raise ValueError("状态筛选无效")
         lo, hi = date_bounds(start, end)
         result = self._base_candidates(query)
         reviews, items = self.reviews(), []
+        candidates={x["id"]:x for x in result["items"]}
         for original in result["items"]:
             if lo is not None and original["last_timestamp"] < lo:
                 continue
             if hi is not None and original["first_timestamp"] >= hi:
                 continue
-            item = {**original}
-            review = reviews.get(item["id"])
-            if review:
-                item.update(status=review["status"], review_note=review["note"],
-                            review_stale=review["source_fingerprint"] != item["source_fingerprint"])
-            if status and item["status"] != status:
+            item=self._present_candidate(original,reviews,candidates)
+            if status == "active" and item["effective_status"] not in ("needs_review","follow_up"):
+                continue
+            if status and status != "active" and item["effective_status"] != status:
                 continue
             items.append(item)
         return {**result, "items": items[:max(1, min(int(limit), 500))], "filtered_candidates": len(items)}
+
+    def _candidate_map(self):
+        signature=self.source_signature()
+        result={}
+        for (sig,_),cached in list(self._cache.items()):
+            if sig==signature:
+                result.update((x["id"],x) for x in cached["items"])
+        return result
+
+    def review_ledger(self, limit=100, offset=0):
+        limit=max(1,min(int(limit),500))
+        offset=max(0,int(offset))
+        reviews=self.reviews()
+        ordered=sorted(reviews.values(),key=lambda r:(-r["updated_at"],r["id"]))
+        items=[]
+        for review in ordered[offset:offset+limit]:
+            item=dict(review)
+            try:
+                source=self._find_candidate(review["id"])
+                item.update(title=source["title"],source_state="unchanged" if source["source_fingerprint"]==review["source_fingerprint"] else "changed")
+            except (KeyError,OSError,sqlite3.Error):
+                item.update(title="此前保存的复核记录",source_state="unavailable")
+            item["effective_status"]=review["status"] if item["source_state"]=="unchanged" else "needs_review"
+            items.append(item)
+        return {"items":items,"total":len(ordered),"has_more":offset+len(items)<len(ordered),
+                "next_offset":offset+len(items) if offset+len(items)<len(ordered) else None,
+                "scope_note":"保留本人复核和备注；来源无法定位不等于项目消失。未能重现的自定义搜索请先重新检索。"}
 
     def _find_candidate(self, oid):
         if not isinstance(oid, str) or not re.fullmatch(r"opportunity:[0-9a-f]{32}", oid):
@@ -460,6 +517,9 @@ class WorldModel:
             candidate = self._find_candidate(oid)
             if expected_fingerprint is not None and expected_fingerprint != candidate["source_fingerprint"]:
                 raise SourceChangedError("依据已变化，请重新检索并复核")
+            review_snapshot=self.reviews()
+            original_candidate=candidate
+            candidate=self._present_candidate(candidate,review_snapshot,self._candidate_map())
             stamp = dt.datetime.fromtimestamp(candidate["first_timestamp"], ZONE).strftime("%Y-%m-%d")
             lines = ["本地跟进准备稿 · 待本人核对", "", candidate["title"],
                      f"历史线索：{candidate['conversation_name']}，{stamp}。", "",
@@ -475,29 +535,79 @@ class WorldModel:
                 lines += ["", "跨会话候选（仅共享主题，不能确认技术兼容、当前产能或合作意愿）："]
                 lines += ["- " + lead["conversation_name"] + " · " + lead["title"] + "；证据：" + lead["anchor_id"] for lead in related]
             evidence_ids = list(dict.fromkeys(candidate["evidence_ids"] + [lead["anchor_id"] for lead in related]))
-            record = {"id": "draft:" + digest(oid, candidate["source_fingerprint"])[:32],
+            draft_key=digest(oid,candidate["source_fingerprint"])
+            if candidate["hidden_related_leads"]:
+                draft_key=digest(oid,candidate["source_fingerprint"],evidence_ids)
+            record = {"id": "draft:" + draft_key[:32],
                       "opportunity_id": oid, "title": candidate["title"] + " · 跟进草稿", "body": "\n".join(lines),
                       "evidence_ids": evidence_ids, "created_at": int(time.time()),
                       "source_fingerprint": candidate["source_fingerprint"], "status": "draft"}
             with self.workspace(write=True) as conn:
+                current_reviews={r["id"]:dict(r) for r in conn.execute("SELECT * FROM reviews")}
+                relevant={oid}|{lead["id"] for lead in original_candidate.get("related_leads",[])}
+                if any(current_reviews.get(k)!=review_snapshot.get(k) for k in relevant):
+                    raise SourceChangedError("关联线索状态已变化，请重新核对")
                 conn.execute("INSERT OR IGNORE INTO drafts VALUES (?,?,?,?,?,?,?)", (record["id"], oid, record["title"], record["body"], json.dumps(record["evidence_ids"]), record["created_at"], record["source_fingerprint"]))
-                saved = dict(conn.execute("SELECT * FROM drafts WHERE id=?", (record["id"],)).fetchone())
-            saved["evidence_ids"] = json.loads(saved["evidence_ids"])
-            saved["status"] = "draft"
-            return saved
+                saved = draft_store.latest(conn,record["id"])
+            return self._annotate_draft(saved)
+
+    def _annotate_draft(self, row):
+        row=dict(row)
+        try:
+            original=self._find_candidate(row["opportunity_id"])
+            current=self._present_candidate(original,self.reviews(),self._candidate_map())
+            row["source_stale"]=original["source_fingerprint"] != row["source_fingerprint"]
+            expected=list(dict.fromkeys(current["evidence_ids"]+[x["anchor_id"] for x in current.get("related_leads",[])]))
+            row["workflow_stale"]=not row["source_stale"] and expected != row["evidence_ids"]
+        except (KeyError,OSError,sqlite3.Error):
+            row["source_stale"]=None
+            row["workflow_stale"]=None
+        row["source_note"]="原始生成版及修改版本均保留；依据或关联状态变化后需重新核对并生成新草稿。"
+        row["editable"]=row["source_stale"] is False and row["workflow_stale"] is False
+        return row
+
+    def draft(self, did, before=None, limit=20):
+        draft_store.validate_id(did)
+        with self._lock,self.workspace() as conn:
+            row=draft_store.latest(conn,did)
+            versions=draft_store.history(conn,did,before,limit)
+        return {"draft":self._annotate_draft(row),"history":versions}
+
+    def save_draft(self, did, title, body, expected_revision, expected_fingerprint):
+        draft_store.validate_id(did)
+        draft_store.validate_edit(title,body,expected_revision)
+        if not isinstance(expected_fingerprint,str) or not re.fullmatch(r"[0-9a-f]{64}",expected_fingerprint):
+            raise ValueError("来源指纹无效")
+        with self._lock:
+            # Validate existence and provenance without creating a workspace.
+            with self.workspace() as conn:
+                row=draft_store.latest(conn,did)
+            if row["source_fingerprint"]!=expected_fingerprint:
+                raise SourceChangedError("草稿依据不一致，请重新核对")
+            signature=self.source_signature()
+            review_snapshot=self.reviews()
+            state=self._annotate_draft(row)
+            if not state["editable"]:
+                raise SourceChangedError("依据或关联状态已变化，请先核对后生成新草稿；现有文字不会丢失。")
+            with self.workspace(write=True) as conn:
+                # Recheck while all workspace writers are serialized.
+                if signature!=self.source_signature():
+                    raise SourceChangedError("来源已更新，请重新核对")
+                current_reviews={r["id"]:dict(r) for r in conn.execute("SELECT * FROM reviews")}
+                if current_reviews!=review_snapshot:
+                    raise SourceChangedError("复核记录已变化，请重新核对")
+                saved=draft_store.save(conn,did,title,body,expected_revision)
+                if signature!=self.source_signature():
+                    raise SourceChangedError("保存期间来源已更新，请重新核对")
+            return self._annotate_draft(saved)
 
     def drafts(self):
-        with self._lock, self.workspace() as conn:
-            rows = [dict(r) for r in conn.execute("SELECT * FROM drafts ORDER BY created_at DESC,id LIMIT 500")] if conn else []
-        for row in rows:
-            row["evidence_ids"] = json.loads(row["evidence_ids"])
-            row["status"] = "draft"
-            try:
-                row["source_stale"] = self._find_candidate(row["opportunity_id"])["source_fingerprint"] != row["source_fingerprint"]
-            except (KeyError, OSError):
-                row["source_stale"] = None
-            row["source_note"] = "草稿保留生成时的证据；新增记录后请重新核对。"
-        return {"items": rows, "scope_note": "仅保存本人生成的本地草稿；没有消息发送接口。"}
+        with self._lock,self.workspace() as conn:
+            ids=[r[0] for r in conn.execute("SELECT id FROM drafts ORDER BY created_at DESC,id LIMIT 500")] if conn else []
+            rows=[draft_store.latest(conn,did) for did in ids]
+        rows=[self._annotate_draft(r) for r in rows]
+        rows.sort(key=lambda r:(-r["updated_at"],r["id"]))
+        return {"items":rows,"scope_note":"草稿修改按版本保存在本机；历史生成版不覆盖，没有消息发送接口。"}
 
     def graph(self, query="机器人", limit=80):
         limit = max(8, min(int(limit), 160))

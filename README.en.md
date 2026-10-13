@@ -2,7 +2,7 @@
 
 **A local workspace for browsing your chat history, tracing evidence, and reviewing possible next steps yourself.**
 
-Version 0.1.0 is an early, working release. It imports normalized chat archives and uses local keywords and rules to organize demand, supply, and collaboration signals around topics such as robotics, robotic arms, manufacturing capacity, and control systems. Each candidate leads back to its source messages.
+Version 0.1.1 is an early, working release. It imports normalized chat archives and uses local keywords and rules to organize demand, supply, and collaboration signals around topics such as robotics, robotic arms, manufacturing capacity, and control systems. Each candidate leads back to its source messages.
 
 This version does not call an LLM, perform semantic search, establish that an opportunity was never pursued, or score a person's trustworthiness. Connections to public AIMAN Robotics / Manufacturing worlds are a roadmap item.
 
@@ -80,8 +80,16 @@ The release checker inspects publishable files for runtime data, key/configurati
 
 ## Version and license
 
-**v0.1.0** is an early personal evidence workspace, not a complete world model or autonomous business-decision system.
+**v0.1.1** is an early personal evidence workspace, not a complete world model or autonomous business-decision system.
 
 Original project code is [MIT licensed](LICENSE). Adapted DAT image-format helpers retain their upstream MIT notice in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt). Pilk, SQLCipher bindings, FFmpeg, and other separately installed dependencies keep their own licenses. Source releases do not bundle WeChat binaries, runtime vendor directories, model weights, or user data.
 
 [Changelog](CHANGELOG.md) · [Security reporting](SECURITY.md)
+
+## v0.1.1 workflow improvements
+
+Edit a draft title and body and choose **Save changes**. Saved edits survive page reloads; the original generated version and subsequent saved revisions remain available. Concurrent stale saves are rejected rather than silently overwriting another editor. Unsaved browser edits remain in the current page; autosave is not implemented.
+
+Completed, dismissed, or stale reviewed counterparts are excluded from related recommendations and new draft templates. Source fingerprints remain independent of human status. A changed source returns a previously closed item to the needs-review lane while preserving its original annotation. The review ledger keeps earlier notes visible even when the source is no longer locatable. A stale draft can still be read or copied, but editing requires a freshly generated draft after checking current evidence.
+
+`scripts/test_browser.mjs` provides a real Chromium smoke check using only handwritten synthetic data and a new temporary browser profile. No private browser session or downloaded browser is used.

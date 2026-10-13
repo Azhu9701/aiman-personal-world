@@ -1,6 +1,6 @@
 # 架构与证据流
 
-v0.1.0 是源码运行的本机应用。Python 提供本地 HTTP 服务、规范归档导入、SQLite 索引和规则引擎；HTML/CSS/JavaScript 提供界面。演示和规范归档查看不需要第三方 Python 包。
+v0.1.1 是源码运行的本机应用。Python 提供本地 HTTP 服务、规范归档导入、SQLite 索引和规则引擎；HTML/CSS/JavaScript 提供界面。演示和规范归档查看不需要第三方 Python 包。
 
 ## 三种数据角色
 
@@ -28,6 +28,7 @@ flowchart TD
 | `app_config.py` | 状态目录、私有配置、进程锁、解释器与可选依赖检查 |
 | `server.py` | 归档索引、只监听回环地址的服务、聊天和工作空间 API、本地媒体访问 |
 | `world_model.py` | 有证据的主题与信号、讨论候选、时间线、图谱、人工复核与模板草稿 |
+| `draft_store.py` | 草稿版本的追加保存、并发版本校验和旧工作数据库只读兼容 |
 | `world.html` / `index.html` | 个人工作空间与聊天历史界面 |
 | `sync_wechat.py` | 已有密钥条件下的只读快照、数据库内容归一化和逐表核对 |
 | `append_chatbot.py` | 支持的本地聊天机器人消息子系统适配；不是云模型客户端 |
@@ -53,3 +54,15 @@ flowchart TD
 源码仓库与私人状态目录必须分开。源代码发行包包含人工示例，不包含密钥、微信二进制、数据库、媒体或本机依赖目录。
 
 实现依据：[server.py](../server.py)、[world_model.py](../world_model.py)、[sync_wechat.py](../sync_wechat.py)、[enrich_media.py](../enrich_media.py)。
+
+## 工作记录的版本与真实浏览器验证
+
+生成稿保存在原 `drafts` 表中且不更新。人工编辑追加到 `draft_revisions`，主键为草稿 ID 与递增版本。读取时叠加最新版本；只读访问不创建或迁移数据库。关联推荐在证据计算之后单独应用当前复核状态，避免人工作业污染来源指纹或计算缓存。
+
+真实浏览器检查可在 Node 24 和已有 Chromium 上运行：
+
+```sh
+PYTHON=python3 CHROME_BIN=/path/to/chrome node scripts/test_browser.mjs
+```
+
+检查使用手写示例、临时状态目录和独立的临时 Chromium 配置，覆盖实际页面渲染、保存、完整页面重载和手机宽度布局。可以用 `PW_VISUAL_OUTPUT` 指定源码目录外的截图位置。它不会连接已有登录态或安装浏览器；仍不代表所有浏览器、全部辅助技术或所有媒体格式已经完成审计。

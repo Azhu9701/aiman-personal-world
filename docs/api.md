@@ -1,4 +1,4 @@
-# 本地 API · v0.1.0
+# 本地 API · v0.1.1
 
 服务由 `personal_world.py` 启动，默认地址为 `http://127.0.0.1:18792`。以下接口面向同一台电脑上的个人工作空间；没有公网、多租户、云模型或第三方消息发送接口。
 
@@ -8,7 +8,7 @@
 
 在已连接页面中执行同源 `fetch` 即可携带 Cookie。不要把凭据放进公开代码、终端历史、问题附件或共享链接。除启动入口外，数据 API 需要有效的本机会话。
 
-所有写请求还必须具有与本地服务完全相同的 `Origin`，并使用 `Content-Type: application/json`。跨源请求、分块传输或超过 32 KiB 的写请求不被接受。主机检查与 Cookie 是本机访问边界，不是面向互联网的用户权限体系。
+所有写请求还必须具有与本地服务完全相同的 `Origin`，并使用 `Content-Type: application/json`。跨源请求、分块传输或超过 128 KiB 的写请求不被接受。主机检查与 Cookie 是本机访问边界，不是面向互联网的用户权限体系。
 
 ## 查询接口
 
@@ -79,7 +79,7 @@
 
 草稿返回 `id`、`opportunity_id`、`title`、`body`、`evidence_ids`、`created_at`、`source_fingerprint`、`status: "draft"`。相同候选证据版本可以复用已保存草稿，新版本生成不同草稿，旧稿保留。草稿列表还返回 `source_stale`：`true` 表示当前证据已变化，`false` 表示当前可核对且相同，`null` 表示候选当前不在可核对范围；`source_note` 解释生成时证据的限制。
 
-草稿包括跨会话线索时会保留各自原消息 ID。当前接口生成固定模板，未提供模型润色、发送或草稿正文编辑保存接口。
+草稿包括跨会话线索时会保留各自原消息 ID。v0.1.1 支持正文编辑保存和版本回看；没有模型润色和发送接口。
 
 复核与草稿写入独立的 `workspace.sqlite`；原归档与导入索引保持不变。候选已不在当前检索范围时，先重新检索并检查证据，再尝试保存。
 
@@ -108,3 +108,15 @@ await fetch('/api/world/review', {
 常见响应包括：参数无效 `400`、缺少本机会话 `401`、主机或来源不匹配 `403`、证据或候选不存在 `404`、不支持的写操作 `405`、来源已变化或索引尚未就绪 `409`、请求过大 `413`、非 JSON 写请求 `415`、本地状态暂不可用 `503`。调用方应保留原界面并显示状态，不把错误解释成“没有聊天”或“没有机会”。
 
 `/api/conversations`、`/api/messages`、`/api/search`、`/api/export` 与 `/api/media/` 继续提供本地历史浏览与附件服务；`/history?conversation=<id>&message=<id>` 可以打开证据对应的历史位置。导出是在本机产生新的私人文件，不是公开发布。
+
+## v0.1.1 · 持久草稿与复核联动
+
+`GET /api/world/draft?id=<draft-id>&limit=20&before=<revision>` 返回 `draft`（最新保存内容）和 `history`。history 包含 `items`、`has_more`、`next_before`；沿返回的 before 读取更早版本，最多每页 100 条。无 before 从最新开始。旧工作数据库的原始生成稿作为第 1 版，只读访问不会执行迁移或创建工作数据库。
+
+`POST /api/world/draft/edit` 必须包含 `id`（草稿编号）、`title`（1–240 字符）、`body`（1–16,000 字符）、`expected_revision`（当前已读正整数版本）及草稿的 `source_fingerprint`。只修改工作数据库，不能修改来源、证据 ID 或生成稿。成功后返回最新草稿及递增的 `revision`、`updated_at`。无内容变化不产生新版本，成功请求的直接重复可幂等返回同一版本。不同编辑者的旧版本提交返回 `409`、`code: draft_conflict`；调用方必须保留用户输入，不得自动拿新版本号重试。来源或关联状态已变化仍返回 `source_changed`，且不覆盖已有文字。
+
+草稿还含 `workflow_stale` 与 `editable`。来源指纹或可见关联状态变动时，旧稿保留但禁止编辑保存；用户先核对候选，再生成新稿。首次保存人工修改时在同一个工作数据库增加 `draft_revisions` 表，不改动 v0.1.0 的原始 drafts 行。写事务使用 BEGIN IMMEDIATE 串行化不同服务实例的竞争提交；源索引在保存前后复查版本变化。
+
+`GET /api/world/reviews?limit=100&offset=0` 返回 `items`、`total`、`has_more`、`next_offset`。每项保留原来的人工 `status`、`note`、`anchor_id`、`source_fingerprint`；`source_state` 为 unchanged、changed 或 unavailable。自定义搜索在冷启动后可能需要先重新检索才能定位；unavailable 不能解读为项目消失。
+
+机会接口支持 `status=active`，只返回有效状态为 needs_review 或 follow_up 的记录。新增 `effective_status`：来源变化的旧标记归入 needs_review，但 `status` 和 `review_note` 保持原样。默认不传 status 仍返回所有状态，兼容 v0.1.0。关联线索过滤会读取最新人工复核，不使用缓存中的旧人工状态；关闭或复核过期的合作方被隐藏，`hidden_related_leads` 报告隐藏数量。这一版对原最多三条关联进行过滤，不会为被隐藏位置自动扩展候选池。人工作业不改变 source_fingerprint。
