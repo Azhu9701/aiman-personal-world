@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0 — Agenda preview
+
+- Add message-anchored Chinese date hints with explicit ambiguity, source identity and possible cancellation/change context.
+- Add owner-reviewed local itinerary, full start/end validation, manual travel/preparation buffers, overlap checks and alternative proposals.
+- Add selected-only RFC5545 export with stable random UIDs, UTF-8 folding and no attendees, alarms or raw chat. No external calendar writes.
+- Add private agenda state, revision/source checks, shared state lock, expiry and source-change export protection.
+- Add isolated synthetic browser and date/API/ICS tests. Real chat extraction remains unverified in this iteration.
+
+
 ## 0.3.0
 
 - Add a local self-profile page with literal first-person candidates, bounded primary self-text analysis, non-sensitive topic counts and monthly ratios.

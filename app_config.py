@@ -16,7 +16,7 @@ import sys
 import tempfile
 
 APP_ID = "aiman-personal-world"
-VERSION = "0.3.0"
+VERSION = "0.4.0"
 DEFAULT_PORT = 18792
 ACCESS_FILE = "personal-world-access.json"
 CONFIG_FILE = "source-config.json"

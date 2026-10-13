@@ -1,6 +1,6 @@
 # 架构与证据流
 
-v0.3.0 是源码运行的本机应用。Python 提供本地 HTTP 服务、规范归档导入、SQLite 索引和规则引擎；HTML/CSS/JavaScript 提供界面。演示和规范归档查看不需要第三方 Python 包。
+v0.4.0 是源码运行的本机应用。Python 提供本地 HTTP 服务、规范归档导入、SQLite 索引和规则引擎；HTML/CSS/JavaScript 提供界面。演示和规范归档查看不需要第三方 Python 包。
 
 ## 三种数据角色
 

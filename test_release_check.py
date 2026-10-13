@@ -58,6 +58,10 @@ class ReleaseCheckTests(unittest.TestCase):
         self.write("examples/profile-demo.json", json.dumps(document))
         self.assertIn("synthetic_example_message_invalid", self.codes())
 
+    def test_agenda_state_is_private_runtime_data(self):
+        self.write('agenda-state.json',json.dumps({'revision':0,'events':{}}))
+        self.assertIn('forbidden_runtime_artifact',self.codes())
+
     def test_profile_state_never_belongs_in_a_release(self):
         self.write("profile-state.json", json.dumps({"revision": 0, "items": {}}))
         self.assertIn("forbidden_runtime_artifact", self.codes())
