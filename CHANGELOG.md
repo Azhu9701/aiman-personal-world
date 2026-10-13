@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0
+
+- Add a local self-profile page with literal first-person candidates, bounded primary self-text analysis, non-sensitive topic counts and monthly ratios.
+- Separate owner-confirmed/corrected prose from source quotes; retain source evidence and pause export after evidence changes.
+- Add explicit confirmation, dismissal, conversation exclusion and text-removing deletion with exact-candidate suppression. No deletion of chat archives or external copies.
+- Add revision-conflict protection and selected-only export preview without raw conversations or message identifiers.
+- Keep analysis local with no model requests, personality scores or automatic sharing; document heuristic privacy filtering and unencrypted local storage.
+- Add handwritten examples plus synthetic API, concurrency, provenance, deletion and isolated Chromium checks.
+
+
 ## 0.2.0 — 2026-10-13
 
 - Add local JSON/JSONL history upload, preview and explicit commit/cancel, with source namespaces and conservative conflict handling.

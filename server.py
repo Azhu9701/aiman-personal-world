@@ -30,6 +30,7 @@ import urllib.parse
 
 from app_config import AppError, APP_ID, VERSION, DEFAULT_PORT, ACCESS_FILE, default_state, state_id, private_dir as ensure_private_dir
 from world_model import WorldModel, SourceChangedError, DraftConflictError
+from personal_profile import PersonalProfile, ProfileConflictError
 
 APP_DIR = Path(__file__).resolve().parent
 DEFAULT_STATE = default_state()
@@ -284,6 +285,7 @@ class ViewerServer(http.server.ThreadingHTTPServer):
         self.state_id = state_id(state)
         self.cookie_name = "personal_world_session_" + self.state_id
         self.world = WorldModel(state)
+        self.profile = PersonalProfile(state)
         super().__init__(("127.0.0.1", port), ViewerHandler)
 
 
@@ -341,8 +343,9 @@ class ViewerHandler(http.server.BaseHTTPRequestHandler):
                 return self.json_response({"error": "本地启动凭据无效，请重新双击启动文件"}, 403)
             self.headers_common(303, "text/plain; charset=utf-8", 0, {"Location": "/", "Set-Cookie": f"{self.server.cookie_name}={self.server.token}; HttpOnly; SameSite=Strict; Path=/"})
             return
-        if split.path in ("/", "/world.html", "/history", "/history/", "/index.html"):
+        if split.path in ("/", "/world.html", "/history", "/history/", "/index.html", "/profile", "/profile.html"):
             name = "world.html" if split.path in ("/", "/world.html") else "index.html"
+            if split.path in ("/profile", "/profile.html"): name = "profile.html"
             payload = (APP_DIR / name).read_bytes()
             self.headers_common(200, "text/html; charset=utf-8", len(payload))
             self.wfile.write(payload)
@@ -357,6 +360,8 @@ class ViewerHandler(http.server.BaseHTTPRequestHandler):
         if origin and origin != expected:
             return self.json_response({"error": "来源不匹配"}, 403)
         try:
+            if split.path == "/api/profile":
+                return self.json_response(self.server.profile.snapshot())
             if split.path == "/api/status":
                 return self.json_response(status_data(self.server.state))
             if split.path == "/api/world/overview":
@@ -387,6 +392,10 @@ class ViewerHandler(http.server.BaseHTTPRequestHandler):
                 if split.path == "/api/export":
                     return self.export(conn, params)
             self.json_response({"error": "页面不存在"}, 404)
+        except AppError:
+            self.json_response({"error":"私有记录不可读取，请检查文件权限或本机数据状态。"},503)
+        except SourceChangedError:
+            self.json_response({"error":"来源已变化，请重新读取画像","code":"source_changed"},409)
         except KeyError:
             self.json_response({"error": "证据或候选不存在，请刷新后重试"}, 404)
         except (ValueError, TypeError, json.JSONDecodeError):
@@ -428,7 +437,7 @@ class ViewerHandler(http.server.BaseHTTPRequestHandler):
         path = urllib.parse.urlsplit(self.path).path
         if path == "/api/world/import/preview":
             return self.import_preview()
-        if path not in ("/api/world/review", "/api/world/draft", "/api/world/draft/edit", "/api/world/import/apply", "/api/world/import/cancel"):
+        if path not in ("/api/world/review", "/api/world/draft", "/api/world/draft/edit", "/api/world/import/apply", "/api/world/import/cancel", "/api/profile/update", "/api/profile/export"):
             return self.json_response({"error": "仅支持本地人工标记和草稿；没有发送或写入微信的接口"}, 405)
         try:
             if self.headers.get("Transfer-Encoding") or self.headers.get("Content-Type", "").split(";", 1)[0].strip() != "application/json":
@@ -440,6 +449,10 @@ class ViewerHandler(http.server.BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(length))
             if not isinstance(body, dict):
                 raise ValueError("body")
+            if path == "/api/profile/update":
+                return self.json_response(self.server.profile.mutate(body))
+            if path == "/api/profile/export":
+                return self.json_response(self.server.profile.export(body))
             if path in ("/api/world/import/apply","/api/world/import/cancel"):
                 from history_import import commit,discard
                 action=commit if path.endswith("/apply") else discard
@@ -456,6 +469,8 @@ class ViewerHandler(http.server.BaseHTTPRequestHandler):
             return self.json_response(result)
         except AppError as error:
             return self.json_response({"error":error.message,"code":error.code},409 if error.code in ("plan_stale","plan_expired","identity_conflict","state_busy","publish_recovery_needed") else 400)
+        except ProfileConflictError:
+            return self.json_response({"error":"画像已在其他窗口修改；请重新读取再合并，未保存文字仍保留。","code":"profile_conflict"},409)
         except DraftConflictError:
             return self.json_response({"error":"草稿已在其他窗口更新；未覆盖最新版本，你的修改仍保留。请重新读取后合并。","code":"draft_conflict"},409)
         except SourceChangedError:

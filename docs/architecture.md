@@ -1,6 +1,6 @@
 # 架构与证据流
 
-v0.2.0 是源码运行的本机应用。Python 提供本地 HTTP 服务、规范归档导入、SQLite 索引和规则引擎；HTML/CSS/JavaScript 提供界面。演示和规范归档查看不需要第三方 Python 包。
+v0.3.0 是源码运行的本机应用。Python 提供本地 HTTP 服务、规范归档导入、SQLite 索引和规则引擎；HTML/CSS/JavaScript 提供界面。演示和规范归档查看不需要第三方 Python 包。
 
 ## 三种数据角色
 
@@ -74,3 +74,7 @@ PYTHON=python3 CHROME_BIN=/path/to/chrome node scripts/test_browser.mjs
 当前集合只保留统一消息字段及 origin。原有原生来源清单保存在各批次的规范输入中，不能拿多批次来源的表计数冒充某次完整数据库导出。集合验证使用既有统一字段核对，再验证每个来源文件的哈希和每条消息/会话对应的输入记录。
 
 全文搜索为外部内容FTS5表时，变化文字先删除原来的FTS条目，再写入新文本；无变化文字不重写。构建在备份得到的独立索引副本上进行，校验后才发布。输入读取和规范集合文件仍是完整扫描/生成。
+
+## 自我画像模块
+
+`personal_profile.py` 在已有只读索引上计算主来源本人文本的规则候选，`profile.html` 提供独立的人工确认界面。控制文件与归档分离，画像写入使用共享StateLock、原子JSON及revision并发检查。模块没有网络依赖，候选不自动持久化。完整状态与数据使用边界见 [personal-profile.md](personal-profile.md)。

@@ -1,6 +1,6 @@
 [project]
 name = "aiman-personal-world"
-version = "0.2.0"
+version = "0.3.0"
 description = "A private, local archive and evidence workspace with human-reviewed actions"
 requires-python = ">=3.10"
 dependencies = []
