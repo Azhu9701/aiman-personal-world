@@ -31,6 +31,7 @@ import urllib.parse
 from app_config import AppError, APP_ID, VERSION, DEFAULT_PORT, ACCESS_FILE, default_state, state_id, private_dir as ensure_private_dir
 from world_model import WorldModel, SourceChangedError, DraftConflictError
 from personal_profile import PersonalProfile, ProfileConflictError
+from personal_agenda import PersonalAgenda, AgendaConflictError
 
 APP_DIR = Path(__file__).resolve().parent
 DEFAULT_STATE = default_state()
@@ -286,6 +287,7 @@ class ViewerServer(http.server.ThreadingHTTPServer):
         self.cookie_name = "personal_world_session_" + self.state_id
         self.world = WorldModel(state)
         self.profile = PersonalProfile(state)
+        self.agenda = PersonalAgenda(state)
         super().__init__(("127.0.0.1", port), ViewerHandler)
 
 
@@ -343,11 +345,13 @@ class ViewerHandler(http.server.BaseHTTPRequestHandler):
                 return self.json_response({"error": "本地启动凭据无效，请重新双击启动文件"}, 403)
             self.headers_common(303, "text/plain; charset=utf-8", 0, {"Location": "/", "Set-Cookie": f"{self.server.cookie_name}={self.server.token}; HttpOnly; SameSite=Strict; Path=/"})
             return
-        if split.path in ("/", "/world.html", "/history", "/history/", "/index.html", "/profile", "/profile.html"):
+        if split.path in ("/", "/world.html", "/history", "/history/", "/index.html", "/profile", "/profile.html", "/agenda", "/agenda.html", "/agenda.js"):
             name = "world.html" if split.path in ("/", "/world.html") else "index.html"
             if split.path in ("/profile", "/profile.html"): name = "profile.html"
+            if split.path in ("/agenda", "/agenda.html"): name = "agenda.html"
+            if split.path == "/agenda.js": name = "agenda.js"
             payload = (APP_DIR / name).read_bytes()
-            self.headers_common(200, "text/html; charset=utf-8", len(payload))
+            self.headers_common(200, "text/javascript; charset=utf-8" if name == "agenda.js" else "text/html; charset=utf-8", len(payload))
             self.wfile.write(payload)
             return
         if not self.authenticated():
@@ -360,6 +364,8 @@ class ViewerHandler(http.server.BaseHTTPRequestHandler):
         if origin and origin != expected:
             return self.json_response({"error": "来源不匹配"}, 403)
         try:
+            if split.path == "/api/agenda":
+                return self.json_response(self.server.agenda.snapshot())
             if split.path == "/api/profile":
                 return self.json_response(self.server.profile.snapshot())
             if split.path == "/api/status":
@@ -437,7 +443,7 @@ class ViewerHandler(http.server.BaseHTTPRequestHandler):
         path = urllib.parse.urlsplit(self.path).path
         if path == "/api/world/import/preview":
             return self.import_preview()
-        if path not in ("/api/world/review", "/api/world/draft", "/api/world/draft/edit", "/api/world/import/apply", "/api/world/import/cancel", "/api/profile/update", "/api/profile/export"):
+        if path not in ("/api/world/review", "/api/world/draft", "/api/world/draft/edit", "/api/world/import/apply", "/api/world/import/cancel", "/api/profile/update", "/api/profile/export", "/api/agenda/preview", "/api/agenda/update", "/api/agenda/export"):
             return self.json_response({"error": "仅支持本地人工标记和草稿；没有发送或写入微信的接口"}, 405)
         try:
             if self.headers.get("Transfer-Encoding") or self.headers.get("Content-Type", "").split(";", 1)[0].strip() != "application/json":
@@ -449,6 +455,9 @@ class ViewerHandler(http.server.BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(length))
             if not isinstance(body, dict):
                 raise ValueError("body")
+            if path in ("/api/agenda/preview", "/api/agenda/update", "/api/agenda/export"):
+                method={"/api/agenda/preview":self.server.agenda.preview,"/api/agenda/update":self.server.agenda.update,"/api/agenda/export":self.server.agenda.export}[path]
+                return self.json_response(method(body))
             if path == "/api/profile/update":
                 return self.json_response(self.server.profile.mutate(body))
             if path == "/api/profile/export":
@@ -469,6 +478,8 @@ class ViewerHandler(http.server.BaseHTTPRequestHandler):
             return self.json_response(result)
         except AppError as error:
             return self.json_response({"error":error.message,"code":error.code},409 if error.code in ("plan_stale","plan_expired","identity_conflict","state_busy","publish_recovery_needed") else 400)
+        except AgendaConflictError as error:
+            return self.json_response({"error":str(error),"code":"agenda_conflict"},409)
         except ProfileConflictError:
             return self.json_response({"error":"画像已在其他窗口修改；请重新读取再合并，未保存文字仍保留。","code":"profile_conflict"},409)
         except DraftConflictError:
@@ -477,8 +488,8 @@ class ViewerHandler(http.server.BaseHTTPRequestHandler):
             return self.json_response({"error": "依据已变化，请重新检索并复核", "code": "source_changed"}, 409)
         except KeyError:
             return self.json_response({"error": "候选已变化，请重新检索并核对证据"}, 404)
-        except (ValueError, TypeError):
-            return self.json_response({"error": "请求参数无效"}, 400)
+        except (ValueError, TypeError) as error:
+            return self.json_response({"error":str(error) if path.startswith("/api/agenda/") and type(error) is ValueError else "请求参数无效"}, 400)
         except (sqlite3.Error, OSError):
             return self.json_response({"error": "本地工作台暂时无法写入，原始归档未改变"}, 503)
 

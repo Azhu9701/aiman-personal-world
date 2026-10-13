@@ -2,7 +2,7 @@
 
 **A local workspace for browsing your chat history, tracing evidence, and reviewing possible next steps yourself.**
 
-Version 0.3.0 is an early, working release. It imports normalized chat archives and uses local keywords and rules to organize demand, supply, and collaboration signals around topics such as robotics, robotic arms, manufacturing capacity, and control systems. Each candidate leads back to its source messages. The self-profile page now lets owners review their own statements, maintain approved descriptions, and preview selected sharing material.
+Version 0.4.0 is an early, working release. It imports normalized chat archives and uses local keywords and rules to organize demand, supply, and collaboration signals around topics such as robotics, robotic arms, manufacturing capacity, and control systems. Each candidate leads back to its source messages. The self-profile page now lets owners review their own statements, maintain approved descriptions, and preview selected sharing material.
 
 This version does not call an LLM, perform semantic search, establish that an opportunity was never pursued, or score a person's trustworthiness. Connections to public AIMAN Robotics / Manufacturing worlds are a roadmap item.
 
@@ -109,3 +109,7 @@ See [history import and recovery](docs/history-import.md) for source namespaces,
 Open **个人画像** from the main navigation. The local rules summarize topic mentions and monthly coverage, and identify literal Chinese first-person self-statements. Nothing becomes an approved profile until the owner reviews it. Confirm/edit/dismiss/delete, exclude conversations, and explicitly preview selected confirmed statements before copying or downloading them. Original evidence remains separately accessible.
 
 Only primary-namespace text marked as self-sent contributes; imported identity markers are not independent identity authentication. No personality diagnosis, sensitive trait inference, third-party reputation scores, external model calls, or automatic sharing. Filtering is heuristic and can miss private content. Profile storage has no application-level encryption. Deleting a profile item does not delete its raw chat, source snapshots or previously exported copies. See [details](docs/personal-profile.md).
+
+## v0.4.0 — Local agenda preview
+
+The /agenda page finds bounded Chinese appointment hints anchored to message dates, distinguishes self/direct/group references, surfaces possible cancellations and changes, and requires explicit owner review of complete times. The local itinerary checks overlap and manually entered preparation/travel buffers. Selected confirmed events can be exported as RFC5545 ICS files; no external calendar write, invitations, bookings, route estimates or reminders are performed. This iteration has synthetic validation, not verified scheduling of real owner appointments. See [details](docs/personal-agenda.md).

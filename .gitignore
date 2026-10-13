@@ -100,3 +100,6 @@ archive-publication.json
 # Owner-confirmed personal profile state is never publishable.
 profile-state.json
 profile.lock
+
+# Private owner-approved itinerary and busy snapshots.
+agenda-state.json

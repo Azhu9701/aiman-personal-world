@@ -26,7 +26,7 @@ RUNTIME_DIRS = {"state", "private", "media", "archives", "backups", "db_storage"
                 "vendor", ".venv", "venv", ".wechat-local", "encrypted-db-backup", "captures",
                 "models", "weights", "node_modules", "dist", "build"}
 RUNTIME_NAMES = {"keys.json", "key.json", "source-config.json", "media-config.json", "local-access.json",
-                 "personal-world-access.json", "profile-state.json", "profile.lock", "archive.json", "archive.jsonl", "workspace.sqlite",
+                 "personal-world-access.json", "profile-state.json", "profile.lock", "agenda-state.json", "archive.json", "archive.jsonl", "workspace.sqlite",
                  "index.sqlite", "credentials.json", "auth.json", ".env", ".ds_store"}
 BINARY_SUFFIXES = {".db", ".sqlite", ".sqlite3", ".wal", ".shm", ".db-wal", ".db-shm", ".jsonl", ".ndjson",
                    ".log", ".pyc", ".pyo", ".dat", ".bin", ".pem", ".key", ".p12", ".pfx", ".dmg", ".app",

@@ -1,4 +1,4 @@
-# 本地 API · v0.3.0
+# 本地 API · v0.4.0
 
 服务由 `personal_world.py` 启动，默认地址为 `http://127.0.0.1:18792`。以下接口面向同一台电脑上的个人工作空间；没有公网、多租户、云模型或第三方消息发送接口。
 
@@ -139,3 +139,7 @@ summary 区分 messages_added、messages_changed、messages_unchanged、conflict
 ## v0.3.0 画像接口
 
 新增 `GET /api/profile`、`POST /api/profile/update`、`POST /api/profile/export`；约束、全局revision和证据变化检查见[画像接口说明](personal-profile.md)。无云推理、自动分享或对他人画像接口。
+
+## 日程预览接口
+
+新增 GET /api/agenda 和 POST /api/agenda/{preview,update,export}，均继承同源授权边界。confirm需明确reviewed/ack_scope及完整起止时间，并核对expected_revision和来源指纹；冲突或旧版本返回409。详见[接口和范围](personal-agenda.md)。
