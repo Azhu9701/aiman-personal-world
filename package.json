@@ -1,0 +1,47 @@
+{
+  "name": "@aiman-world/dsh-personal-world",
+  "version": "0.4.0",
+  "description": "Local Personal World workspace for DeepSeek Harness: chat evidence, profiles, agenda and reviewed actions.",
+  "type": "module",
+  "main": "dsh-plugin/index.js",
+  "exports": {
+    ".": "./dsh-plugin/index.js",
+    "./client": "./dsh-plugin/client.js",
+    "./package.json": "./package.json"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dsh": {
+    "engines": {
+      "dsh": "0.2.0-rc.2"
+    },
+    "bundle": {
+      "patch": "./dsh-plugin/cordis.patch.yml"
+    },
+    "client": {
+      "inject": ["@deepseek-ai/dsh-client-ui-renderer", "@deepseek-ai/dsh-client-ui-sidebar"],
+      "platform": "web"
+    }
+  },
+  "files": [
+    "*.py",
+    "*.html",
+    "agenda.js",
+    "dsh-plugin/",
+    "docs/",
+    "examples/",
+    "LICENSE",
+    "WORLD.md",
+    "README.md",
+    "README.en.md",
+    "CHANGELOG.md",
+    "pyproject.toml",
+    "scripts/",
+    "THIRD-PARTY-NOTICES.txt"
+  ],
+  "scripts": {
+    "test:plugin": "node --test dsh-plugin/test/*.test.js"
+  },
+  "license": "MIT"
+}

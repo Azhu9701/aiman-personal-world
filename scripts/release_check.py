@@ -202,6 +202,25 @@ def check_demo(document, relative, issues):
         add(issues, relative, "synthetic_example_count_mismatch")
 
 
+def check_package(document, relative, issues):
+    """A public plugin manifest has its own narrow schema; it is not user data."""
+    fields={'name','version','description','type','main','exports','engines','dsh','files','scripts','license'}
+    expected_files=['*.py','*.html','agenda.js','dsh-plugin/','docs/','examples/','LICENSE','WORLD.md','README.md','README.en.md','CHANGELOG.md','pyproject.toml','scripts/','THIRD-PARTY-NOTICES.txt']
+    valid=isinstance(document,dict) and set(document)==fields
+    if valid:
+        valid=(document['name']=='@aiman-world/dsh-personal-world'
+               and isinstance(document['version'],str) and re.fullmatch(r'\d+\.\d+\.\d+',document['version']) is not None
+               and document['description']=='Local Personal World workspace for DeepSeek Harness: chat evidence, profiles, agenda and reviewed actions.'
+               and document['type']=='module' and document['main']=='dsh-plugin/index.js'
+               and document['exports']=={'.':'./dsh-plugin/index.js','./client':'./dsh-plugin/client.js','./package.json':'./package.json'}
+               and document['engines']=={'node':'>=22'}
+               and document['dsh']=={'engines':{'dsh':'0.2.0-rc.2'},'bundle':{'patch':'./dsh-plugin/cordis.patch.yml'},'client':{'inject':['@deepseek-ai/dsh-client-ui-renderer','@deepseek-ai/dsh-client-ui-sidebar'],'platform':'web'}}
+               and document['files']==expected_files
+               and document['scripts']=={'test:plugin':'node --test dsh-plugin/test/*.test.js'}
+               and document['license']=='MIT')
+    if not valid:add(issues,relative,'plugin_manifest_contract_invalid')
+
+
 def scan(root, require_project=True):
     root = Path(root).resolve()
     relatives, mode = publishable_files(root)
@@ -242,7 +261,12 @@ def scan(root, require_project=True):
             add(issues, relative, "unreadable_or_nontext_source")
             continue
         if path.suffix.casefold() == ".json":
-            if relative not in {"examples/demo.json", "examples/profile-demo.json"}:
+            if relative == "package.json":
+                try:
+                    check_package(json.loads(text), relative, issues)
+                except (ValueError, TypeError):
+                    add(issues, relative, "plugin_manifest_contract_invalid")
+            elif relative not in {"examples/demo.json", "examples/profile-demo.json"}:
                 add(issues, relative, "json_not_approved_synthetic_example")
             else:
                 try:

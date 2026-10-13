@@ -113,3 +113,7 @@ Only primary-namespace text marked as self-sent contributes; imported identity m
 ## v0.4.0 — Local agenda preview
 
 The /agenda page finds bounded Chinese appointment hints anchored to message dates, distinguishes self/direct/group references, surfaces possible cancellations and changes, and requires explicit owner review of complete times. The local itinerary checks overlap and manually entered preparation/travel buffers. Selected confirmed events can be exported as RFC5545 ICS files; no external calendar write, invitations, bookings, route estimates or reminders are performed. This iteration has synthetic validation, not verified scheduling of real owner appointments. See [details](docs/personal-agenda.md).
+
+## DeepSeek Harness plugin
+
+The full local workspace can be installed as `@aiman-world/dsh-personal-world` on DSH 0.2.0-rc.2. Its native sidebar links eight modules; model-side tools expose status and navigation only, not private record contents. See [installation and boundaries](docs/deepseek-harness.md).
