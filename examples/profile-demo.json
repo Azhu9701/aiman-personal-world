@@ -1,0 +1,153 @@
+{
+  "manifest": {
+    "complete": true,
+    "synthetic": true,
+    "label": "手写个人画像正反例；非任何人的真实记录。",
+    "message_count": 15,
+    "conversation_count": 1
+  },
+  "conversations": [
+    {
+      "id": "demo:profile:c",
+      "name": "人工画像示例会话",
+      "is_group": false
+    }
+  ],
+  "messages": [
+    {
+      "id": "demo:profile:self-one",
+      "conversation_id": "demo:profile:c",
+      "sender_name": "人工示例",
+      "is_self": true,
+      "type": "text",
+      "text": "我坚持研究过程保留原始证据。",
+      "timestamp": 1704067200
+    },
+    {
+      "id": "demo:profile:self-two",
+      "conversation_id": "demo:profile:c",
+      "sender_name": "人工示例",
+      "is_self": true,
+      "type": "text",
+      "text": "我坚持研究过程保留原始证据。",
+      "timestamp": 1707523200
+    },
+    {
+      "id": "demo:profile:self-project",
+      "conversation_id": "demo:profile:c",
+      "sender_name": "人工示例",
+      "is_self": true,
+      "type": "text",
+      "text": "我正在制作一套开源机械臂。",
+      "timestamp": 1707609600
+    },
+    {
+      "id": "demo:profile:self-job",
+      "conversation_id": "demo:profile:c",
+      "sender_name": "人工示例",
+      "is_self": true,
+      "type": "text",
+      "text": "我是机器人项目的工程师。",
+      "timestamp": 1707696000
+    },
+    {
+      "id": "demo:profile:self-identity",
+      "conversation_id": "demo:profile:c",
+      "sender_name": "人工示例",
+      "is_self": true,
+      "type": "text",
+      "text": "我是开源贡献者。",
+      "timestamp": 1707868800
+    },
+    {
+      "id": "demo:profile:self-pref",
+      "conversation_id": "demo:profile:c",
+      "sender_name": "人工示例",
+      "is_self": true,
+      "type": "text",
+      "text": "我更喜欢先做本地验证。",
+      "timestamp": 1707955200
+    },
+    {
+      "id": "demo:profile:self-neg",
+      "conversation_id": "demo:profile:c",
+      "sender_name": "人工示例",
+      "is_self": true,
+      "type": "text",
+      "text": "我不喜欢直接跳过测试。",
+      "timestamp": 1708041600
+    },
+    {
+      "id": "demo:profile:not-self",
+      "conversation_id": "demo:profile:c",
+      "sender_name": "人工示例",
+      "is_self": false,
+      "type": "text",
+      "text": "我喜欢隔壁城市的独特产品。",
+      "timestamp": 1704067200
+    },
+    {
+      "id": "demo:profile:forward",
+      "conversation_id": "demo:profile:c",
+      "sender_name": "人工示例",
+      "is_self": true,
+      "type": "text",
+      "text": "他说：我喜欢炒股。",
+      "timestamp": 1704067200
+    },
+    {
+      "id": "demo:profile:quote",
+      "conversation_id": "demo:profile:c",
+      "sender_name": "人工示例",
+      "is_self": true,
+      "type": "text",
+      "text": "我喜欢“代入角色的机器人故事”。",
+      "timestamp": 1704067200
+    },
+    {
+      "id": "demo:profile:question",
+      "conversation_id": "demo:profile:c",
+      "sender_name": "人工示例",
+      "is_self": true,
+      "type": "text",
+      "text": "我应该喜欢自动化研究吗？",
+      "timestamp": 1704067200
+    },
+    {
+      "id": "demo:profile:hypothetical",
+      "conversation_id": "demo:profile:c",
+      "sender_name": "人工示例",
+      "is_self": true,
+      "type": "text",
+      "text": "如果我是机器人专家，我喜欢这条路线。",
+      "timestamp": 1704067200
+    },
+    {
+      "id": "demo:profile:sensitive",
+      "conversation_id": "demo:profile:c",
+      "sender_name": "人工示例",
+      "is_self": true,
+      "type": "text",
+      "text": "我希望保留我的病史和密码。",
+      "timestamp": 1704067200
+    },
+    {
+      "id": "demo:profile:contact",
+      "conversation_id": "demo:profile:c",
+      "sender_name": "人工示例",
+      "is_self": true,
+      "type": "text",
+      "text": "我希望你联系 test@example.invalid。",
+      "timestamp": 1704067200
+    },
+    {
+      "id": "demo:profile:long-number",
+      "conversation_id": "demo:profile:c",
+      "sender_name": "人工示例",
+      "is_self": true,
+      "type": "text",
+      "text": "我希望保留 12345678901 这个测试编号。",
+      "timestamp": 1704067200
+    }
+  ]
+}

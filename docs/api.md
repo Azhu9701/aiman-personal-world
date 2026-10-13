@@ -1,4 +1,4 @@
-# 本地 API · v0.2.0
+# 本地 API · v0.3.0
 
 服务由 `personal_world.py` 启动，默认地址为 `http://127.0.0.1:18792`。以下接口面向同一台电脑上的个人工作空间；没有公网、多租户、云模型或第三方消息发送接口。
 
@@ -135,3 +135,7 @@ summary 区分 messages_added、messages_changed、messages_unchanged、conflict
 确认结果的 delta 包含 mode、rows_inserted、rows_updated、search_rows_written。copy_on_write_delta 表示复制当前索引后增量写入；不表示原生微信解密或输入校验已只处理新增记录。validation 描述输入验证层，最终集合另有来源映射和索引校验。
 
 预览上传使用上述独立上限，其余 JSON 写操作保持128 KiB 上限。真实微信 refresh --preview 会准备新的媒体缓存，但不替换当前归档和索引。更完整的范围见 [历史导入](history-import.md)。
+
+## v0.3.0 画像接口
+
+新增 `GET /api/profile`、`POST /api/profile/update`、`POST /api/profile/export`；约束、全局revision和证据变化检查见[画像接口说明](personal-profile.md)。无云推理、自动分享或对他人画像接口。

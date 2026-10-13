@@ -50,6 +50,18 @@ class ReleaseCheckTests(unittest.TestCase):
         self.assertGreaterEqual(len(document["conversations"]), 5)
         self.assertEqual(len(document["messages"]), len({m["id"] for m in document["messages"]}))
 
+    def test_profile_demo_uses_the_same_strict_synthetic_contract(self):
+        document = json.loads((APP / "examples/profile-demo.json").read_text())
+        self.write("examples/profile-demo.json", json.dumps(document))
+        self.assertTrue(self.scan()["ok"])
+        document["messages"][0]["private_field"] = "not an allowed example field"
+        self.write("examples/profile-demo.json", json.dumps(document))
+        self.assertIn("synthetic_example_message_invalid", self.codes())
+
+    def test_profile_state_never_belongs_in_a_release(self):
+        self.write("profile-state.json", json.dumps({"revision": 0, "items": {}}))
+        self.assertIn("forbidden_runtime_artifact", self.codes())
+
     def test_synthetic_label_cannot_hide_config_or_unapproved_fields(self):
         forged = {"synthetic": True, "keys": {"default": hashlib.sha256(b"manufactured release fixture").hexdigest()}}
         self.write("examples/demo.json", json.dumps(forged))

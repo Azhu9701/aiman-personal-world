@@ -2,7 +2,7 @@
 
 **A local workspace for browsing your chat history, tracing evidence, and reviewing possible next steps yourself.**
 
-Version 0.2.0 is an early, working release. It imports normalized chat archives and uses local keywords and rules to organize demand, supply, and collaboration signals around topics such as robotics, robotic arms, manufacturing capacity, and control systems. Each candidate leads back to its source messages.
+Version 0.3.0 is an early, working release. It imports normalized chat archives and uses local keywords and rules to organize demand, supply, and collaboration signals around topics such as robotics, robotic arms, manufacturing capacity, and control systems. Each candidate leads back to its source messages. The self-profile page now lets owners review their own statements, maintain approved descriptions, and preview selected sharing material.
 
 This version does not call an LLM, perform semantic search, establish that an opportunity was never pursued, or score a person's trustworthiness. Connections to public AIMAN Robotics / Manufacturing worlds are a roadmap item.
 
@@ -103,3 +103,9 @@ Configured WeChat refreshes now merge instead of replacing accumulated history. 
 Retained normalized input snapshots support per-record origin auditing. Existing reviews and draft revisions remain separate. A durable publication journal supports recovery after interruption between the archive/index swaps; unknown external changes cause a stop instead of forced overwrite. These snapshots are private, are not automatically expired, and do not disappear when you delete a message in the original client. Application-level at-rest encryption and selective deletion are still not implemented.
 
 See [history import and recovery](docs/history-import.md) for source namespaces, the 512 MiB batch limit, CLI commands and verification scope.
+
+## v0.3.0 — Self profile
+
+Open **个人画像** from the main navigation. The local rules summarize topic mentions and monthly coverage, and identify literal Chinese first-person self-statements. Nothing becomes an approved profile until the owner reviews it. Confirm/edit/dismiss/delete, exclude conversations, and explicitly preview selected confirmed statements before copying or downloading them. Original evidence remains separately accessible.
+
+Only primary-namespace text marked as self-sent contributes; imported identity markers are not independent identity authentication. No personality diagnosis, sensitive trait inference, third-party reputation scores, external model calls, or automatic sharing. Filtering is heuristic and can miss private content. Profile storage has no application-level encryption. Deleting a profile item does not delete its raw chat, source snapshots or previously exported copies. See [details](docs/personal-profile.md).

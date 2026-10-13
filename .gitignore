@@ -96,3 +96,7 @@ archive-publication.json
 .publish-backup-*/
 .origin-audit-*/
 .upload-*/
+
+# Owner-confirmed personal profile state is never publishable.
+profile-state.json
+profile.lock
