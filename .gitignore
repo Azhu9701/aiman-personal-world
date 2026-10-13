@@ -88,3 +88,11 @@ Thumbs.db
 
 # This hand-written, schema-checked fixture is intentionally public.
 !examples/demo.json
+
+# Private historical inputs and pending local import plans
+import-sources/
+import-plans/
+archive-publication.json
+.publish-backup-*/
+.origin-audit-*/
+.upload-*/

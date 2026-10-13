@@ -226,6 +226,9 @@ def verify_state(state: Path, media_dir: Path | None = None) -> dict:
     private_file(state / "archive.jsonl")
     private_file(state / "index.sqlite")
     manifest = archive_manifest(state / "archive.jsonl")
+    if manifest.get("archive_format") == "personal-world.collection.v1":
+        from history_import import verify_collection
+        return verify_collection(state,media_dir=media_dir)
     if "source_tables" in manifest or "additional_sources" in manifest:
         import verify_archive
         result, _ = verify_archive.archive_index(state, media_dir=media_dir)
@@ -259,6 +262,8 @@ def import_state(source: Path, state: Path, *, demo: bool = False, no_open: bool
     with StateLock(state), interruption_handlers():
         if demo:
             guard_demo(state)
+        if not demo and (state / "archive.jsonl").is_file() and archive_manifest(state/"archive.jsonl").get("archive_format")=="personal-world.collection.v1":
+            raise AppError("collection_requires_merge","已有历史集合请使用 import 的安全合并入口，不能用旧接口整体替换。")
         with tempfile.TemporaryDirectory(prefix=".import-", dir=state) as temporary:
             staging = Path(temporary)
             manifest = canonical_archive(source, staging / "archive.jsonl")
@@ -339,7 +344,9 @@ def parser() -> argparse.ArgumentParser:
     for name, help_text in (("demo", "加载独立的人工演示数据"), ("open", "启动或重新打开本地界面"),
                             ("serve", "在当前终端运行本地服务"), ("import", "导入已有 JSON/JSONL 归档"),
                             ("doctor", "安全检测本机依赖、配置和导入范围"), ("configure", "配置已有数据库和已有密钥"),
-                            ("refresh", "从已配置来源建立并校验新快照"), ("verify", "只读逐条核对归档、索引和媒体")):
+                            ("refresh", "从已配置来源建立并合并新快照"), ("verify", "只读逐条核对归档、索引和媒体"),
+                            ("apply-import", "确认已核对的历史导入预览"), ("cancel-import", "取消未确认的预览"),
+                            ("history", "查看月份覆盖和导入批次"), ("recover", "检查并恢复中断的归档发布")):
         command = commands.add_parser(name, help=help_text)
         command.add_argument("--state", type=Path)
         if name in ("demo", "open", "serve", "import", "refresh"):
@@ -348,7 +355,14 @@ def parser() -> argparse.ArgumentParser:
             command.add_argument("--no-open", action="store_true", help="数据命令完成后不启动界面；open 命令仅不唤起浏览器")
         if name == "import":
             command.add_argument("file", type=Path)
+            command.add_argument("--preview",action="store_true",help="只生成本地预览，不改变当前聊天")
+            command.add_argument("--source-id",default="primary",help="当前账号/相同编号体系用primary；其他来源请另取标识")
+            command.add_argument("--policy",choices=("keep_existing","prefer_incoming"),default="keep_existing")
+            command.add_argument("--label",default="手动归档")
+        if name in ("apply-import","cancel-import"):
+            command.add_argument("plan_id")
         if name == "refresh":
+            command.add_argument("--preview",action="store_true",help="核对本机新快照并给出合并预览，不先改变当前历史")
             command.add_argument("--timeout", type=int, default=7200, help="每个刷新步骤的最大秒数，默认 7200")
         if name == "verify":
             command.add_argument("--media-dir", type=Path)
@@ -368,7 +382,24 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "demo":
             result = import_state(APP_DIR / "examples/demo.json", state, demo=True, no_open=args.no_open, port=args.port)
         elif args.command == "import":
-            result = import_state(args.file, state, no_open=args.no_open, port=args.port)
+            import history_import
+            preview=history_import.prepare(args.file,state,source_id=args.source_id,policy=args.policy,label=args.label)
+            result=preview if args.preview else history_import.commit(preview["plan_id"],state)
+            if not args.preview and not args.no_open:
+                from launch import open_viewer
+                result["viewer"]=open_viewer(state,port=args.port)
+        elif args.command == "apply-import":
+            from history_import import commit
+            result=commit(args.plan_id,state)
+        elif args.command == "cancel-import":
+            from history_import import discard
+            result=discard(args.plan_id,state)
+        elif args.command == "history":
+            from history_import import catalog
+            result={"ok":True,**catalog(state)}
+        elif args.command == "recover":
+            with StateLock(state) as lock:
+                result={"ok":True,**getattr(lock,"recovery",{"recovered":False})}
         elif args.command == "configure":
             names = ("db_root", "key_file", "self_id", "python", "image_python", "ffmpeg", "sqlcipher_library", "app_data", "source_version")
             result = configure(state, {name: getattr(args, name) for name in names})
@@ -378,7 +409,7 @@ def main(argv: list[str] | None = None) -> int:
             result = verify_state(state, args.media_dir)
         elif args.command == "refresh":
             from refresh import refresh_state
-            result = refresh_state(state, no_open=args.no_open, port=args.port, timeout=args.timeout)
+            result = refresh_state(state, no_open=args.no_open, port=args.port, timeout=args.timeout,preview=args.preview)
         elif args.command == "open":
             from launch import open_viewer
             result = open_viewer(state, no_open=args.no_open, port=args.port)

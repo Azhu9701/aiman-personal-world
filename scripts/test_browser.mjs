@@ -21,8 +21,10 @@ async function until(test,label,seconds=20){const end=Date.now()+seconds*1000;wh
 const pythonCode=`import sys,json
 from pathlib import Path
 from server import import_archive,ViewerServer
+from personal_world import canonical_archive
 state=Path(sys.argv[1]);state.mkdir(mode=0o700)
-import_archive(Path('examples/demo.json'),state)
+canonical_archive(Path('examples/demo.json'),state/'archive.jsonl')
+import_archive(state/'archive.jsonl',state)
 server=ViewerServer(0,state,'synthetic-browser-session')
 print(json.dumps({'port':server.server_address[1]}),flush=True)
 server.serve_forever()
@@ -69,12 +71,27 @@ try{
   await command('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await delay(250);
   assert(await evaluate('document.documentElement.scrollWidth<=innerWidth'));await screenshot('workbench-mobile');
   console.log('PASS mobile-width layout does not overflow');
+  await command('Emulation.setDeviceMetricsOverride',{width:1280,height:960,deviceScaleFactor:1,mobile:false});
+  await evaluate("document.getElementById('open-source').click();document.getElementById('source-import').click()");
+  await until(()=>evaluate("document.getElementById('history-import-dialog').open && !!document.querySelector('#history-import-catalog table')"),'history import dialog');
+  const historyFile=path.join(tmp,'synthetic-older.json');
+  fs.writeFileSync(historyFile,JSON.stringify({manifest:{synthetic:true,complete:true},conversations:[{id:'synthetic-old-history',name:'人工更早会话',is_group:false}],messages:[{id:'synthetic-old-message',conversation_id:'synthetic-old-history',sender_name:'人工人物',is_self:false,type:'text',timestamp:1577836800,text:'这是完全人工的2020年历史补充测试。'}]}),{mode:0o600});
+  await command('DOM.enable');const dom=await command('DOM.getDocument');const input=await command('DOM.querySelector',{nodeId:dom.root.nodeId,selector:'#history-import-file'});
+  await command('DOM.setFileInputFiles',{nodeId:input.nodeId,files:[historyFile]});
+  await evaluate("document.getElementById('history-import-identity').checked=true;document.getElementById('history-import-prepare').click()");
+  await until(()=>evaluate("!document.getElementById('history-import-preview').hidden && !document.getElementById('history-import-apply').disabled"),'safe import preview',30);
+  assert.strictEqual(await evaluate("Number(document.getElementById('stat-messages').textContent.replaceAll(',',''))"),40);
+  await screenshot('history-import-preview');console.log('PASS local file preview does not mutate active history');
+  await evaluate("document.getElementById('history-import-apply').click()");
+  await until(()=>evaluate("document.getElementById('history-import-progress').textContent.includes('已合并') && Number(document.getElementById('stat-messages').textContent.replaceAll(',',''))===41"),'confirmed backfill',30);
+  assert(await evaluate("document.getElementById('history-import-catalog').textContent.includes('2020-01')"));
+  await screenshot('history-import-complete');console.log('PASS explicit backfill preserves existing messages and extends coverage');
   assert.deepEqual(pageErrors,[]);
   // Inline data: images are document-local bytes, not external fetches.
   const unexpected=network.filter(url=>!url.startsWith(base+'/')&&url!=='about:blank'&&!url.startsWith('data:image/'));
   if(unexpected.length)console.log('UNEXPECTED_REQUEST_ORIGINS '+JSON.stringify(unexpected.map(url=>new URL(url).origin)));
   assert.strictEqual(unexpected.length,0,'The synthetic application must not fetch external resources');
-  console.log('BROWSER_CHECK_COMPLETE 4 groups; synthetic data only'+(output?'; screenshots: '+output:''));
+  console.log('BROWSER_CHECK_COMPLETE 6 groups; synthetic data only'+(output?'; screenshots: '+output:''));
   await command('Browser.close').catch(()=>{});
 }catch(error){console.error(error.stack);process.exitCode=1;}
 finally{if(ws)ws.close();for(const p of pending.values())p.reject(new Error('Test finished'));pending.clear();await stop(browser);await stop(python);fs.rmSync(tmp,{recursive:true,force:true});}

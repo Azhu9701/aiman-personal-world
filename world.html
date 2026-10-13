@@ -172,14 +172,33 @@
   <dialog id="source-dialog" aria-labelledby="source-title">
     <div class="dialog-heading"><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg><h2 id="source-title">数据来源与导入</h2><button class="icon-button" data-close aria-label="关闭"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button></div>
     <div class="dialog-body">
-      <p class="dialog-lead">四个视图共用本地聊天索引。只导入你有权读取的归档，记录不会通过这个页面上传。</p>
+      <p class="dialog-lead">四个视图共用本地聊天索引。只导入你有权读取的归档。所选文件只传给这台电脑上的本地服务，不上传云端。</p>
       <div id="source-status-notes" class="coverage-notes"></div>
-      <div class="source-steps"><div class="source-step"><span class="step-number">1</span><span>准备规范 JSON 或 JSONL 聊天归档，字段要求见项目 README 与数据格式说明。</span></div><div class="source-step"><span class="step-number">2</span><span>在项目目录通过本地服务导入归档，然后打开程序给出的本机地址。</span></div><div class="source-step"><span class="step-number">3</span><span>点击“重新读取”。行动候选、时间线和图谱会基于实际索引生成。</span></div></div>
-      <pre class="source-command">python server.py --import-file /path/to/archive.jsonl --open</pre>
+      <div class="source-steps"><div class="source-step"><span class="step-number">1</span><span>准备规范 JSON 或 JSONL 聊天归档，字段要求见项目 README 与数据格式说明。</span></div><div class="source-step"><span class="step-number">2</span><span>点击“补充历史”，选择文件，先预览新增、重复和冲突数量，再确认合并。</span></div><div class="source-step"><span class="step-number">3</span><span>点击“重新读取”。行动候选、时间线和图谱会基于实际索引生成。</span></div></div>
+      <pre class="source-command">python3 personal_world.py import /path/to/archive.jsonl --preview</pre>
       <p class="field-note">如果只想临时查看 JSON，可在微信历史页使用“导入 JSON”；此操作不会把数据加入工作台索引。实际导入与命令参数以项目 README 为准。</p>
       <p class="caution">本版使用本地规则检索，尚未启用大模型或语义搜索。候选、关系与时间线均受本机归档范围限制。</p>
     </div>
-    <div class="dialog-footer"><button class="button" id="source-history">打开微信历史</button><button class="button primary" id="source-refresh">重新读取</button></div>
+    <div class="dialog-footer"><button class="button" id="source-import">补充历史 / 查看导入批次</button><button class="button" id="source-history">打开微信历史</button><button class="button primary" id="source-refresh">重新读取</button></div>
+  </dialog>
+  <dialog id="history-import-dialog" aria-labelledby="history-import-title">
+    <form id="history-import-form">
+      <div class="dialog-heading"><h2 id="history-import-title">补充历史聊天</h2><button class="icon-button" type="button" data-close aria-label="关闭">×</button></div>
+      <div class="dialog-body">
+        <p class="dialog-lead">把旧电脑或备份中已导出的规范 JSON / JSONL 分批加入。缺少的记录不会从现有历史中删除；原始规范输入会留在本机。</p>
+        <div class="field"><label for="history-import-file">选择本机文件（每批最多 512 MiB）</label><input id="history-import-file" type="file" accept=".json,.jsonl,.ndjson"></div>
+        <div class="field"><label for="history-import-source">来源标识</label><input id="history-import-source" value="primary" maxlength="40" pattern="[a-z][a-z0-9_\-]{0,39}"></div>
+        <p class="field-note">primary：当前账号与相同稳定消息编号。其他账号或不同导出器请另起标识，例如 old-export；不同来源会分开展示，不按同名联系人猜测合并。</p>
+        <label class="field-note" style="display:block;margin-top:12px"><input type="checkbox" id="history-import-identity"> 我确认 primary 文件属于当前账号，并沿用相同的稳定消息编号体系。</label>
+        <div class="field"><label for="history-import-policy">相同编号的文字或附件信息不一致时</label><select id="history-import-policy"><option value="keep_existing">保留现有内容（补旧历史推荐）</option><option value="prefer_incoming">采用此次导入内容（旧内容仍保留在来源快照）</option></select></div>
+        <p class="field-note">相同编号若指向不同会话或不同时间，会阻止确认。旧附件可用但此次读取失败时，会保留整条旧记录；若正文同时变化，则停下核查。</p>
+        <p class="field-note" id="history-import-progress" role="status" aria-live="polite"></p>
+        <div id="history-import-preview" hidden></div><p class="form-error" id="history-import-error" hidden></p>
+        <details class="related-leads"><summary>月份覆盖与历史导入批次</summary><div id="history-import-catalog"></div></details>
+        <p class="caution">本机保留的输入快照可能占用较多磁盘，包含私人聊天；尚无自动到期清理。在微信里删除消息不会自动删除这里的历史。合并不能恢复未同步、已删除或尚未解码的内容。</p>
+      </div>
+      <div class="dialog-footer"><button class="button" type="button" id="history-import-reload">查看最新覆盖</button><button class="button" type="submit" id="history-import-prepare">生成预览</button><button class="button primary" type="button" id="history-import-apply" disabled>确认合并到本机</button></div>
+    </form>
   </dialog>
   <dialog id="coverage-dialog" aria-labelledby="coverage-title">
     <div class="dialog-heading"><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg><h2 id="coverage-title">数据覆盖范围</h2><button class="icon-button" data-close aria-label="关闭"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button></div>
@@ -218,7 +237,7 @@
     };
     const statusLabels = { needs_review: '待核实', follow_up: '待跟进', completed: '已完成', dismissed: '已排除' };
     const typeLabels = { text: '文本', image: '图片', video: '视频', voice: '语音', audio: '音频', file: '文件', link: '链接', card: '卡片', system: '系统', sticker: '表情', location: '位置', unknown: '未知类型' };
-    const S = { view: 'workbench', query: '机器人', from: '', to: '', overview: null, status: null, ready: false, bootBusy: false, bootError: '', bootSeq: 0, filterStatus: 'needs_review', opportunityItems: [], opportunityData: null, opportunityError: '', opportunityBusy: false, opportunitySeq: 0, timelineItems: [], timelineData: null, timelineBusy: false, timelineError: '', timelineCursor: null, timelineSeq: 0, graphData: null, graphBusy: false, graphError: '', graphSeq: 0, graphSelected: '', graphZoom: 1, graphNodes: new Map(), graphElements: new Map(), graphEdges: [], drafts: [], draftEdits: new Map(), draftSaving: false, draftHistorySeq: 0, draftHistoryBefore: null, reviewLedgerSeq: 0, reviewLedgerOffset: 0, draftsBusy: false, draftSeq: 0, reviewItem: null, draftItem: null, evidenceIds: [], evidenceIndex: 0, evidenceSeq: 0, evidenceData: null, historyLoaded: false, cache: Object.create(null) };
+    const S = { view: 'workbench', query: '机器人', from: '', to: '', overview: null, status: null, ready: false, bootBusy: false, bootError: '', bootSeq: 0, filterStatus: 'needs_review', opportunityItems: [], opportunityData: null, opportunityError: '', opportunityBusy: false, opportunitySeq: 0, timelineItems: [], timelineData: null, timelineBusy: false, timelineError: '', timelineCursor: null, timelineSeq: 0, graphData: null, graphBusy: false, graphError: '', graphSeq: 0, graphSelected: '', graphZoom: 1, graphNodes: new Map(), graphElements: new Map(), graphEdges: [], drafts: [], draftEdits: new Map(), draftSaving: false, draftHistorySeq: 0, draftHistoryBefore: null, reviewLedgerSeq: 0, reviewLedgerOffset: 0, historyPlan: null, historyBusy: false, historyFile: null, historySettings: '', draftsBusy: false, draftSeq: 0, reviewItem: null, draftItem: null, evidenceIds: [], evidenceIndex: 0, evidenceSeq: 0, evidenceData: null, historyLoaded: false, cache: Object.create(null) };
     const formatNumber = new Intl.NumberFormat('zh-CN');
     const formatDay = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' });
     const formatFull = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
@@ -243,7 +262,7 @@
       if (!/^https?:$/.test(location.protocol)) throw new Error('请通过项目的本地启动程序打开此应用。直接打开 HTML 时，可以进入微信历史临时查看 JSON。');
       const config = Object.assign({ credentials: 'same-origin', cache: 'no-store' }, options || {});
       config.headers = Object.assign({ Accept: 'application/json' }, config.headers || {});
-      if (config.body) config.headers['Content-Type'] = 'application/json';
+      if (config.body && !(config.body instanceof Blob)) config.headers['Content-Type'] = 'application/json';
       const response = await fetch(path, config);
       if (!response.ok) { let message = ''; try { const data = await response.json(); message = str(data.message || data.error); } catch (_) {} if (response.status === 401 || response.status === 403) message = '本地会话授权已失效，请从配套启动程序重新打开本机地址。'; const error = new Error(message.slice(0, 600) || '本地服务返回错误（' + response.status + '），请稍后重试。'); error.status = response.status; throw error; }
       const value = await response.json(); if (!value || typeof value !== 'object') throw new Error('本地服务返回的数据格式无法识别。'); return value;
@@ -446,6 +465,48 @@
       const id=S.draftItem.id;try{const data=await request(query('/api/world/draft',{id:id}));S.draftEdits.delete(id);paintDraft(data.draft);await loadDraftHistory(true);}catch(error){$('draft-error').textContent=error.message;$('draft-error').hidden=false;}}
     async function copyDraft() { const text = $('draft-body').value; try { if (!navigator.clipboard || !window.isSecureContext) throw new Error('manual'); await navigator.clipboard.writeText(text); toast('草稿已复制，请在使用前核对语境与对象。'); } catch (_) { $('draft-body').focus(); $('draft-body').select(); toast('请按 Ctrl/Cmd + C 复制选中的草稿，或保存为文本。'); } }
     function downloadDraft() { const body = $('draft-body').value; const title = $('draft-title-input').value || '跟进草稿'; const blob = new Blob([title + '\n\n' + body + '\n'], { type: 'text/plain;charset=utf-8' }); const url = URL.createObjectURL(blob); const a = el('a'); a.href = url; a.download = 'aiman-follow-up-draft.txt'; document.body.append(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(url); }, 1500); }
+    function importSettings() { return JSON.stringify({source:$('history-import-source').value,policy:$('history-import-policy').value,identity:$('history-import-identity').checked}); }
+    function importBusy(value) { S.historyBusy=value; ['history-import-prepare','history-import-reload','history-import-file','history-import-source','history-import-policy','history-import-identity'].forEach(function(id){$(id).disabled=value;}); $('history-import-apply').disabled=value||!S.historyPlan||!S.historyPlan.can_apply||S.historySettings!==importSettings(); }
+    async function showHistoryImport() { $('source-dialog').close();showDialog($('history-import-dialog'));await loadHistoryCatalog(); }
+    async function loadHistoryCatalog() { const box=$('history-import-catalog');loading(box,'正在读取本机覆盖范围…');
+      try{const data=await request('/api/world/imports');box.replaceChildren();
+        if(list(data.pending_previews).length){box.append(el('h3','','未确认的本机预览'));list(data.pending_previews).forEach(function(plan){const row=el('div','related-lead');row.append(el('strong','',str(plan.label,'本机导入')),el('p','scope',full(plan.created_at)+(plan.expired?' · 已过期':' · 尚未确认')),
+          button('取消这份预览','button small',async function(){if(S.historyBusy)return;importBusy(true);try{await request('/api/world/import/cancel',{method:'POST',body:JSON.stringify({plan_id:plan.plan_id})});if(S.historyPlan&&S.historyPlan.plan_id===plan.plan_id){S.historyPlan=null;renderImportPreview(null);}await loadHistoryCatalog();toast('只清理了未确认预览，已导入历史保持不变。');}catch(error){toast(error.message);}finally{importBusy(false);}}));box.append(row);});}
+        if(!data.ready){box.append(el('p','scope','尚未导入记录。'));return;}
+        const months=el('div');months.style.maxHeight='240px';months.style.overflow='auto';
+        const table=el('table','data-table'),body=el('tbody');list(data.months).forEach(function(item){const row=el('tr');row.append(el('td','',item.month),el('td','',n(item.messages)+(item.messages?' 条':' · 尚无已导入记录')));body.append(row);});table.append(body);months.append(table);box.append(months);
+        if(data.months_truncated)box.append(el('p','scope','跨度较大，这里最多显示600个月。'));
+        if(data.unknown_time_messages)box.append(el('p','scope','另有 '+n(data.unknown_time_messages)+' 条时间未知记录。'));
+        if(!list(data.batches).length)box.append(el('p','scope','当前为原有单一快照；首次合并时会登记并保留它。'));
+        list(data.imports).slice(0,30).forEach(function(item){const row=el('div','related-lead'),summary=item.summary||{};row.append(el('strong','',str(item.label,'本机导入')),el('span','',full(item.prepared_at)+' · 新增 '+n(summary.messages_added)+' · 更新 '+n(summary.messages_changed)+' · 重复 '+n(summary.messages_unchanged)));box.append(row);});
+        if(list(data.batches).length){box.append(el('h3','','已保留的规范输入'));list(data.batches).forEach(function(item){box.append(el('p','scope',str(item.label)+' · 来源 '+str(item.source_id)+' · '+n(item.input_messages)+' 条（可重叠） · '+day(item.first_timestamp)+' — '+day(item.last_timestamp)));});}
+        list(data.notes).forEach(function(note){box.append(el('p','field-note',note));});
+      }catch(error){errorBox(box,error.message,loadHistoryCatalog);}
+    }
+    function renderImportPreview(plan) { const box=$('history-import-preview');box.hidden=!plan;box.replaceChildren();if(!plan)return;const summary=plan.summary||{},table=el('table','data-table'),body=el('tbody');
+      [['现有消息',summary.before_messages],['此次新增',summary.messages_added],['相同编号且内容相同',summary.messages_unchanged],['不同内容',summary.conflicts],['将保留原内容',summary.kept_existing],['将更新内容',summary.messages_changed],['已保留原有可用附件',summary.media_downgrades_prevented],['附件与正文冲突',summary.media_content_conflicts],['编号身份冲突',summary.identity_conflicts],['合并后消息',summary.after_messages]].forEach(function(pair){const row=el('tr');row.append(el('td','',pair[0]),el('td','',n(pair[1])));body.append(row);});table.append(body);box.append(table,el('p','field-note','合并后范围：'+day(summary.first_timestamp)+' — '+day(summary.last_timestamp)));
+      if(!plan.can_apply)box.append(el('p','form-error','检测到身份或附件内容冲突，请核实来源再重新预览，不会自动覆盖。'));
+    }
+    async function prepareHistoryImport(event) { event.preventDefault();if(S.historyBusy)return;const file=$('history-import-file').files[0],source=$('history-import-source').value,policy=$('history-import-policy').value;
+      $('history-import-error').hidden=true;
+      if(!file){$('history-import-error').textContent='请先选择规范 JSON / JSONL 文件。';$('history-import-error').hidden=false;return;}
+      if(file.size>512*1024*1024){$('history-import-error').textContent='单批上限512 MiB，请将更大的归档分批。';$('history-import-error').hidden=false;return;}
+      if(source==='primary'&&!$('history-import-identity').checked){$('history-import-error').textContent='请确认当前账号与编号体系，或给其他来源设置独立标识。';$('history-import-error').hidden=false;return;}
+      if(!/^[a-z][a-z0-9_-]{0,39}$/.test(source)){ $('history-import-error').textContent='来源标识格式无效。';$('history-import-error').hidden=false;return;}
+      importBusy(true);$('history-import-progress').textContent='正在传给本机服务并逐条核对… 当前聊天不会改变，大文件可能需要一段时间。';
+      try{if(S.historyPlan)await request('/api/world/import/cancel',{method:'POST',body:JSON.stringify({plan_id:S.historyPlan.plan_id})});S.historyPlan=null;renderImportPreview(null);
+        const ext=file.name.toLowerCase().split('.').pop();if(!['json','jsonl','ndjson'].includes(ext))throw new Error('请选择 JSON 或 JSONL 文件。');
+        const result=await request(query('/api/world/import/preview',{format:ext==='json'?'json':'jsonl',source_id:source,policy:policy,label:file.name.slice(0,120)}),{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:file});
+        if(!result.plan_id)throw new Error('未取得完整预览。');S.historyPlan=result;S.historyFile=file;S.historySettings=importSettings();renderImportPreview(result);$('history-import-progress').textContent='预览完成，尚未写入当前聊天。请核对后确认。';
+      }catch(error){$('history-import-error').textContent=error.message;$('history-import-error').hidden=false;$('history-import-progress').textContent='预览未完成，当前聊天保持不变。';}finally{importBusy(false);}
+    }
+    async function applyHistoryImport() { if(S.historyBusy||!S.historyPlan||!S.historyPlan.can_apply)return;if(S.historySettings!==importSettings()||S.historyFile!==$('history-import-file').files[0]){toast('选择已变化，请重新预览。');return;}
+      importBusy(true);$('history-import-error').hidden=true;$('history-import-progress').textContent='正在确认本机合并…';
+      try{const result=await request('/api/world/import/apply',{method:'POST',body:JSON.stringify({plan_id:S.historyPlan.plan_id})});if(result.ok!==true)throw new Error('尚未完成合并，请检查状态。');
+        S.historyPlan=null;S.historyFile=null;S.historySettings='';renderImportPreview(null);$('history-import-progress').textContent=result.status==='unchanged'?'没有需要加入或更新的内容；现有归档和索引未重写。':'已合并：新增 '+n(result.summary.messages_added)+' 条，更新 '+n(result.summary.messages_changed)+' 条。原有历史、备注和草稿保留。';
+        S.historyLoaded=false;await boot();await loadHistoryCatalog();toast('本机历史已核对完成；未发送消息。');
+      }catch(error){$('history-import-error').textContent=error.message;$('history-import-error').hidden=false;$('history-import-progress').textContent='未完成确认；不要把它当作已导入。';}finally{importBusy(false);}
+    }
     function safeMedia(value) { if (typeof value !== 'string' || !value.startsWith('/api/media/') || value.includes('\\') || !/^https?:$/.test(location.protocol)) return ''; try { const url = new URL(value, location.href); return url.origin === location.origin && url.pathname.startsWith('/api/media/') ? url.href : ''; } catch (_) { return ''; } }
     function safeWeb(value) { if (!/^https?:\/\//i.test(str(value))) return ''; try { const url = new URL(value); return /^https?:$/.test(url.protocol) && !url.username && !url.password ? url.href : ''; } catch (_) { return ''; } }
     function appendText(container, value) { const text = str(value); const pattern = /https?:\/\/[^\s<>"\u0000-\u001f]+/gi; let position = 0; let match; while ((match = pattern.exec(text)) !== null) { const raw = match[0].replace(/[。，、；：！？）》】」』.,;!?]+$/u, ''); const url = safeWeb(raw); if (!url) continue; container.append(document.createTextNode(text.slice(position, match.index))); const link = el('a', '', raw); link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.referrerPolicy = 'no-referrer'; link.title = '点击后在新标签页打开外部链接'; container.append(link); position = match.index + raw.length; } container.append(document.createTextNode(text.slice(position))); }
@@ -482,13 +543,17 @@
     document.querySelectorAll('[data-status]').forEach(function (tab) { tab.addEventListener('click', function () { S.filterStatus = tab.dataset.status; renderOpportunities(); }); });
     $('refresh-all').addEventListener('click', function () { boot(); }); $('open-source').addEventListener('click', function () { showDialog($('source-dialog')); }); $('method-info').addEventListener('click', function () { showDialog($('source-dialog')); }); $('source-refresh').addEventListener('click', function () { $('source-dialog').close(); boot(); }); $('source-history').addEventListener('click', function () { $('source-dialog').close(); setView('history'); }); $('open-coverage').addEventListener('click', coverage); $('coverage-source').addEventListener('click', function () { $('coverage-dialog').close(); showDialog($('source-dialog')); });
     $('review-form').addEventListener('submit', saveReview); $('refresh-drafts').addEventListener('click', loadDrafts); $('draft-copy').addEventListener('click', copyDraft); $('draft-download').addEventListener('click', downloadDraft); $('graph-minus').addEventListener('click', function () { graphZoom(-.2); }); $('graph-plus').addEventListener('click', function () { graphZoom(.2); }); $('graph-reset').addEventListener('click', function () { S.graphZoom = 1; graphZoom(0); });
+    $('source-import').addEventListener('click',showHistoryImport);$('history-import-form').addEventListener('submit',prepareHistoryImport);$('history-import-apply').addEventListener('click',applyHistoryImport);$('history-import-reload').addEventListener('click',loadHistoryCatalog);
+    ['history-import-file','history-import-source','history-import-policy','history-import-identity'].forEach(function(id){$(id).addEventListener('change',function(){if(S.historyPlan){$('history-import-apply').disabled=true;$('history-import-progress').textContent='选择已变化，请重新生成预览。';}});});
+    $('history-import-dialog').addEventListener('cancel',function(event){if(S.historyBusy)event.preventDefault();});
+    $('history-import-dialog').addEventListener('close',function(){if(S.historyPlan&&!S.historyBusy){const plan=S.historyPlan;S.historyPlan=null;renderImportPreview(null);request('/api/world/import/cancel',{method:'POST',body:JSON.stringify({plan_id:plan.plan_id})}).catch(function(){toast('预览未能清理；可稍后用 cancel-import 取消，不影响当前聊天。');});}});
     $('draft-body').addEventListener('input', rememberDraftEdit); $('draft-title-input').addEventListener('input',rememberDraftEdit);
     $('draft-save').addEventListener('click',saveEditedDraft);$('draft-reload').addEventListener('click',reloadDraft);$('draft-history-more').addEventListener('click',function(){loadDraftHistory(false);});
     $('review-ledger-refresh').addEventListener('click',function(){loadReviewLedger(true);});$('review-ledger-more').addEventListener('click',function(){loadReviewLedger(false);});
     $('draft-dialog').addEventListener('cancel',function(event){if(S.draftSaving){event.preventDefault();return;}rememberDraftEdit();});
     window.addEventListener('beforeunload',function(event){if(S.draftEdits.size||S.draftSaving){event.preventDefault();event.returnValue='';}});
     $('evidence-history').addEventListener('click', function () { const data = S.evidenceData; if (data && data.message) openHistory(str(data.conversation && data.conversation.id || data.message.conversation_id), str(data.message.id)); }); $('evidence-dialog').addEventListener('close', function () { S.evidenceSeq++; $('evidence-body').replaceChildren(); S.evidenceData = null; });
-    document.querySelectorAll('[data-close]').forEach(function (b) { b.addEventListener('click', function (event) { event.preventDefault(); const dialog = b.closest('dialog'); if (dialog && !(dialog.id === 'draft-dialog' && S.draftSaving)) dialog.close(); }); }); document.querySelectorAll('dialog').forEach(function (dialog) { dialog.addEventListener('click', function (event) { if (event.target !== dialog) return; const box = dialog.getBoundingClientRect(); if (!(dialog.id === 'draft-dialog' && S.draftSaving) && (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom)) dialog.close(); }); });
+    document.querySelectorAll('[data-close]').forEach(function (b) { b.addEventListener('click', function (event) { event.preventDefault(); const dialog = b.closest('dialog'); if (dialog && !((dialog.id === 'draft-dialog' && S.draftSaving)||(dialog.id === 'history-import-dialog' && S.historyBusy))) dialog.close(); }); }); document.querySelectorAll('dialog').forEach(function (dialog) { dialog.addEventListener('click', function (event) { if (event.target !== dialog) return; const box = dialog.getBoundingClientRect(); if (!((dialog.id === 'draft-dialog' && S.draftSaving)||(dialog.id === 'history-import-dialog' && S.historyBusy)) && (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom)) dialog.close(); }); });
     document.addEventListener('keydown', function (event) { if (event.key === 'Escape') closeMenu(); if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k' && !document.querySelector('dialog[open]')) { event.preventDefault(); if (S.view === 'history') setView('workbench'); $('world-query').focus(); $('world-query').select(); } });
     $('today').textContent = formatDay.format(new Date()) + ' · 北京时间'; $('history-external').href = historyUrl(); setView(location.hash.slice(1) || 'workbench', { fromHash: true }); boot();
   }());

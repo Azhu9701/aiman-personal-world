@@ -130,6 +130,8 @@ class WorldModel:
 
     @contextlib.contextmanager
     def index(self):
+        if (self.state / "archive-publication.json").exists():
+            raise OSError("Archive publication needs completion or recovery")
         path = (self.state / "index.sqlite").resolve()
         conn = sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=5)
         try:
@@ -141,6 +143,8 @@ class WorldModel:
             conn.close()
 
     def source_signature(self):
+        if (self.state / "archive-publication.json").exists():
+            raise OSError("Archive publication needs recovery")
         info = (self.state / "index.sqlite").stat()
         return (info.st_ino, info.st_mtime_ns, info.st_size)
 
