@@ -116,4 +116,8 @@ The /agenda page finds bounded Chinese appointment hints anchored to message dat
 
 ## DeepSeek Harness plugin
 
-The full local workspace can be installed as `@aiman-world/dsh-personal-world` on DSH 0.2.0-rc.2. Its native sidebar links eight modules; model-side tools expose status and navigation only, not private record contents. See [installation and boundaries](docs/deepseek-harness.md).
+The full local workspace can be installed as `@aiman-world/dsh-personal-world` on DSH 0.2.0-rc.2. Its native sidebar links eight modules; v0.5.0 also provides approved reads of an explicitly owner-selected export, not default access to the full private archive. See [installation and boundaries](docs/deepseek-harness.md).
+
+## Plugin v0.5.0: owner-selected chat evidence for agents
+
+Four native tools now return selected message data after a one-shot Harness approval: selection metadata, literal search, message context, and chronological reads. The owner previews and submits a bounded conversation export first. This is not direct full-archive access and has no automatic send or external calendar write. Model-visible excerpts may enter the configured provider and session logs. See [scope and workflow](docs/agent-selected-chat.md).

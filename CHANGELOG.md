@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0 plugin — Owner-selected message tools
+
+- Add four actual message/evidence tools using native one-shot Harness approvals inside execution. Denied, cancelled, unavailable, expired, revoked or wrong-agent reads return no selected content.
+- Add owner-only local export preview, explicit bounded selection import, lifetime and cumulative disclosure limits, and revocation. No original archive/index reader or model-side import tool.
+- Preserve evidence IDs, timestamps, literal context and truncation. No auto booking, message send or calendar write.
+- Retain the existing Python core at 0.4.0 without an archive migration.
+
 ## DeepSeek Harness plugin preview
 
 - Package the complete local workspace as @aiman-world/dsh-personal-world for DSH 0.2.0-rc.2 using native host and client contracts.

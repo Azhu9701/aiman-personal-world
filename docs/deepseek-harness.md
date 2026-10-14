@@ -1,6 +1,6 @@
 # DeepSeek Harness 原生插件 · 本机工作台版
 
-包名 `@aiman-world/dsh-personal-world`，当前版本0.4.0；适配并锁定本机实际验证的 DeepSeek Harness 0.2.0-rc.2。没有为未经验证的版本提供兼容性豁免。
+包名 `@aiman-world/dsh-personal-world`，当前插件版本0.5.0（本机Python核心仍为0.4.0）；适配并锁定本机实际验证的 DeepSeek Harness 0.2.0-rc.2。没有为未经验证的版本提供兼容性豁免。
 
 ## 包含什么
 
@@ -12,21 +12,18 @@ Host入口使用真实Cordis `apply` / `inject` / `ctx.tools.register` / `ctx.we
 
 ## 模型权限边界
 
-当前版本只注册两个不含私聊正文的原生工具：
+0.5.0已增加四个真正返回所选消息资料的原生工具：`personal_world_selection_info`、`personal_world_search_messages`、`personal_world_message_context`、`personal_world_timeline`。原有状态/导航工具仍不含私聊。
 
-- `personal_world_status`：检查本机服务版本和模块可用入口；只访问固定loopback `/healthz`。
-- `personal_world_navigation`：返回明确选择的本机模块链接；不打开浏览器、不读取或导出内容。
+本人从工作台导出一个会话，在“选择聊天交给Agent”页面预览日期和条数后建立选区。每次模型读取经Harness原生approval服务授权；无授权不返回消息。Agent可据此做需求分析、约定变更核对及证据引用。
 
-**本版尚未实现模型直接搜索聊天、读取画像/日程或调用工作台写接口。** 不能把“有侧栏入口”说成“模型已经读懂全部聊天”。完整功能由本人在本机界面使用。将来接入私有数据工具，必须区分本地浏览和模型数据披露，并经过宿主一次性授权；本次没有预先开启这项权限。
-
-模型服务可能是远程提供方，工具返回和上传资料也可能进入其上下文与DSH日志。因此，不把“原始归档在本地”等同于“所有AI处理都在本地”。此插件不将源记录注入系统提示，不自动分享，不给模型添加可任意读取路径、执行SQL、写日历或发送消息的接口。
+**不是原始微信库直连：本版只读取本人明确选择并提交给插件内存的导出范围。** 无全库默认开放、无任意文件或SQL、无自动发消息或写外部日历。导入前文件仅在本机浏览器预览，Agent读出的内容可能进入当前模型服务商和DSH日志。撤销不能抹去已披露内容。完整步骤、上限、宿主自动审核边界和测试见[Agent所选私聊说明](agent-selected-chat.md)。
 
 ## 安装与启动
 
 安装无网络运行时依赖、无postinstall/prepare脚本的本地发布包：
 
 ```sh
-dsh plugin --profile web add /path/to/aiman-world-dsh-personal-world-0.4.0.tgz --ignore-scripts
+dsh plugin --profile web add /path/to/aiman-world-dsh-personal-world-0.5.0.tgz --ignore-scripts
 ```
 
 插件需要Python3.10+运行打包的本机应用。首次体验应使用手写示例，不要覆盖自己的真实归档：
