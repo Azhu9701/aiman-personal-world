@@ -32,20 +32,20 @@ test('all eight original modules have local entries without private material',()
  const html=portal(localBase());
  for(const route of Object.values(views))assert(html.includes('http://127.0.0.1:18792'+route));
  assert(!html.includes('access='));assert(!html.includes('<iframe'));
- assert(html.includes('尚未提供模型直接检索私聊'));
+ assert(html.includes('不是自动读取整个微信库'));
 });
 test('native tools register and navigation never reads or modifies data',async()=>{
- const tools=new Map();let route,cleanup,disposed=false,prompt;
- const ctx={tools:{register:t=>tools.set(t.name,t)},systemPrompt:{section:s=>{prompt=s.text;}},webServer:{register:r=>{route=r;return()=>{disposed=true;};}},effect:f=>{cleanup=f();}};
+ const tools=new Map();let route,cleanup,disposed=false,prompt;const effects=[];
+ const ctx={tools:{register:t=>tools.set(t.name,t)},systemPrompt:{section:s=>{prompt=s.text;}},webServer:{register:r=>{route=r;return()=>{disposed=true;};}},effect:f=>{cleanup=f();effects.push(cleanup);}};
  apply(ctx,{workspaceUrl:'http://127.0.0.1:12345/'});
- assert.equal(tools.size,2);assert(prompt.includes('Do not claim to have read'));
+ assert.equal(tools.size,6);assert(prompt.includes('Do not claim to have read'));
  const tool=tools.get('personal_world_navigation');const value=JSON.parse((await tool.execute({view:'agenda'})).text);
  assert.equal(value.url,'http://127.0.0.1:12345/agenda');assert.equal(value.privateContentRead,false);
  await assert.rejects(()=>tool.execute({view:'../../etc'}));
  const output={writeHead(code,headers){this.code=code;this.headers=headers;},end(body){this.body=body;}};
  route.handler({...request(),method:'POST',url:'/personal-world/'},output);assert.equal(output.code,405);
  route.handler({...request(),method:'GET',url:'/personal-world/'},output);assert.equal(output.code,200);assert(output.body.includes('个人世界'));
- cleanup();assert(disposed);
+ for(const effect of effects)effect();assert(disposed);
 });
 test('browser plugin uses the real DSH sidebar slot and cleans it up',()=>{
  let descriptor,callback,slot,unregistered=false,removed=false,cleanup,opened;

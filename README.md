@@ -128,4 +128,8 @@ python3 -B scripts/release_check.py
 
 ## DeepSeek Harness 插件
 
-完整本机工作台现可打包为 `@aiman-world/dsh-personal-world`，适配DSH 0.2.0-rc.2。原生侧栏入口覆盖八个模块；当前模型侧工具仅提供服务状态和页面导航，不读取私人聊天到模型。安装和权限边界见[插件说明](docs/deepseek-harness.md)。
+完整本机工作台现可打包为 `@aiman-world/dsh-personal-world`，适配DSH 0.2.0-rc.2。原生侧栏入口覆盖八个模块；0.5.0另支持本人明确选区经宿主授权供Agent处理，不默认开放全归档。安装和权限边界见[插件说明](docs/deepseek-harness.md)。
+
+## v0.5.0 插件：让 Agent 真正处理所选聊天
+
+新增四项带Harness逐次授权的真实取数工具：查看选区、搜索原话、回看上下文、读取时间线。本人导出并预览指定会话的日期范围后，Agent可以读取选中的消息、分析需求和约定变化，并引用消息编号。不是整个微信库直连；不开放自动发送或外部日历写入。详见[实际使用与权限边界](docs/agent-selected-chat.md)。

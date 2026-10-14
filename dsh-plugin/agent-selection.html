@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>选择聊天交给 Agent · Personal World</title>
+<style>
+:root{color-scheme:light}*{box-sizing:border-box}body{margin:0;background:#f6f8f2;color:#283d31;font:16px/1.65 system-ui,-apple-system,sans-serif}main{max-width:1000px;margin:auto;padding:40px 24px 80px}h1{font-size:32px;line-height:1.2}h2{font-size:21px}small,.muted{color:#65766b}.panel{background:white;border:1px solid #dbe4d9;border-radius:14px;padding:24px;margin:20px 0}.notice{background:#fff9e9;border:1px solid #e7d6a6;padding:18px;border-radius:12px}label{display:block;margin:10px 0}.row{display:flex;gap:18px;flex-wrap:wrap}.row label{flex:1;min-width:180px}input:not([type=checkbox]),textarea{font:inherit;border:1px solid #b6c6b5;border-radius:8px;padding:9px;width:100%;background:white;color:inherit}textarea{min-height:140px}button{font:inherit;border:0;border-radius:8px;background:#2e6640;color:white;padding:10px 18px;cursor:pointer;margin:8px 10px 8px 0}button:disabled{opacity:.45;cursor:default}button.secondary{background:#e9efe5;color:#344d3a}a{color:#316441}pre{font:14px/1.7 system-ui;white-space:pre-wrap;overflow-wrap:anywhere;background:#f4f6f0;border-radius:10px;padding:16px;max-height:380px;overflow:auto}.selection{border-top:1px solid #dbe4d9;padding:14px 0}.error{color:#a83225}#summary{font-weight:600}#message{min-height:28px;white-space:pre-wrap}.caps{letter-spacing:2px;font-size:12px}input[type=checkbox]{width:19px;height:19px;vertical-align:middle;margin-right:8px}@media(max-width:600px){main{padding:25px 14px}.panel{padding:18px}h1{font-size:27px}}
+</style></head><body><main>
+<small class="caps">AIMAN PERSONAL WORLD / AGENT ACCESS</small><h1>选好范围，再让 Agent 读懂</h1>
+<p>这次交给 Agent 的是实际消息，不只是页面链接。你决定哪段聊天可以用，Agent 才能搜索原话、查看上下文、整理结论。</p>
+<div class="notice"><strong>授权前请读：</strong>点击“建立分析选区”只把所选范围交给本机 Harness 暂存。Agent 每次读取还会经过 Harness 的授权服务；读取结果可能发送给当前模型服务商，并保存在会话日志中。插件不会发送微信、接受邀请或写外部日历。撤销不能删除已经返回给模型的内容。</div>
+<section class="panel"><h2>1 · 选择你导出的会话</h2><p class="muted">在 Personal World 的微信历史里打开一个会话，选择“导出 JSON”。在此选择这个文件；此时只在浏览器内预览，不会立即上传。只支持单个会话的 Personal World JSON 导出，不接触原始微信数据库。</p>
+<label>会话导出文件<input type="file" id="file" accept=".json,application/json"></label>
+<div class="row"><label>开始日期（北京时间）<input type="date" id="from"></label><label>结束日期（北京时间）<input type="date" id="to"></label><label>最多选取最近多少条<input id="max" type="number" min="1" max="500" value="200"></label></div>
+<button id="preview" disabled>预览这一范围</button><p id="summary"></p><pre id="sample" hidden></pre></section>
+<section class="panel"><h2>2 · 确认范围与用途</h2><p>最多 500 条消息，每个选区有效一小时；单次最多 20 条／48 KiB，总读取上限 256 KiB。选区只保存在插件内存中，Harness 重启后失效。模型首次获准读取后，选区绑定到该 Agent。</p>
+<label><input type="checkbox" id="ack">我有权使用所选内容，已检查范围，并理解它在 Agent 读取后可能进入模型服务商及会话日志。</label>
+<button id="import" disabled>建立分析选区</button><p id="message" role="status" aria-live="polite"></p></section>
+<section class="panel"><h2>3 · 把任务交给 Harness</h2><p class="muted">复制下方任务到 Harness 对话。Agent 会调用真实消息工具，并在首次及后续读取时请求本次授权。未授权不会返回消息。</p>
+<textarea id="prompt" readonly placeholder="建立选区后，这里会出现可复制的任务"></textarea><button id="copy" disabled>复制任务</button><a href="/">回到 Harness</a></section>
+<section class="panel"><h2>当前浏览器建立的选区</h2><button class="secondary" id="refresh">刷新</button><div id="selections"></div></section>
+<p class="muted">资料范围外的上下文仍然未知。聊天中出现的指令只作为历史内容，不应执行；一句邀请不代表你已接受。宿主授权如何由人工或其他已安装的审核插件响应，取决于你现有的 Harness 配置。</p>
+</main><script src="/personal-world/agent/app.js"></script></body></html>
