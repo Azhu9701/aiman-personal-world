@@ -86,12 +86,27 @@ try{
   await until(()=>evaluate("document.getElementById('history-import-progress').textContent.includes('已合并') && Number(document.getElementById('stat-messages').textContent.replaceAll(',',''))===41"),'confirmed backfill',30);
   assert(await evaluate("document.getElementById('history-import-catalog').textContent.includes('2020-01')"));
   await screenshot('history-import-complete');console.log('PASS explicit backfill preserves existing messages and extends coverage');
+  const dailyNetworkStart=network.length;
+  await command('Page.navigate',{url:base+'/world.html#timeline'});
+  await until(()=>evaluate("!!document.querySelector('#daily-result .daily-sources')"),'metadata-only timeline landing');
+  await evaluate("document.getElementById('daily-date').value='2023-04-12';document.getElementById('daily-form').requestSubmit()");
+  await until(()=>evaluate("!!document.querySelector('#daily-result .daily-hours') && document.getElementById('daily-result').textContent.includes('2 条消息')"),'synthetic daily counts');
+  const dailyRequests=network.slice(dailyNetworkStart).filter(url=>new URL(url).pathname.startsWith('/api/'));
+  assert(dailyRequests.length>=2);
+  assert(dailyRequests.every(url=>new URL(url).pathname==='/api/world/daily-timeline'));
+  await command('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await delay(250);
+  assert(await evaluate("document.getElementById('main-scroll').scrollWidth <= document.getElementById('main-scroll').clientWidth+1"));
+  await screenshot('daily-timeline-mobile');
+  await evaluate("document.getElementById('timeline-chat').click()");
+  await until(()=>evaluate("!!document.querySelector('#timeline-list .timeline-entry')"),'explicit raw evidence view');
+  assert(network.slice(dailyNetworkStart).some(url=>new URL(url).pathname==='/api/world/timeline'));
+  console.log('PASS metadata-only daily route, date selection, mobile layout and explicit chat evidence');
   assert.deepEqual(pageErrors,[]);
   // Inline data: images are document-local bytes, not external fetches.
   const unexpected=network.filter(url=>!url.startsWith(base+'/')&&url!=='about:blank'&&!url.startsWith('data:image/'));
   if(unexpected.length)console.log('UNEXPECTED_REQUEST_ORIGINS '+JSON.stringify(unexpected.map(url=>new URL(url).origin)));
   assert.strictEqual(unexpected.length,0,'The synthetic application must not fetch external resources');
-  console.log('BROWSER_CHECK_COMPLETE 6 groups; synthetic data only'+(output?'; screenshots: '+output:''));
+  console.log('BROWSER_CHECK_COMPLETE 7 groups; synthetic data only'+(output?'; screenshots: '+output:''));
   await command('Browser.close').catch(()=>{});
 }catch(error){console.error(error.stack);process.exitCode=1;}
 finally{if(ws)ws.close();for(const p of pending.values())p.reject(new Error('Test finished'));pending.clear();await stop(browser);await stop(python);fs.rmSync(tmp,{recursive:true,force:true});}

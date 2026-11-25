@@ -29,6 +29,7 @@ import tempfile
 import urllib.parse
 
 from app_config import AppError, APP_ID, VERSION, DEFAULT_PORT, ACCESS_FILE, default_state, state_id, private_dir as ensure_private_dir
+from daily_timeline import snapshot as daily_timeline_snapshot
 from world_model import WorldModel, SourceChangedError, DraftConflictError
 from personal_profile import PersonalProfile, ProfileConflictError
 
@@ -366,6 +367,10 @@ class ViewerHandler(http.server.BaseHTTPRequestHandler):
                 return self.json_response(status_data(self.server.state))
             if split.path == "/api/world/overview":
                 return self.json_response(self.server.world.overview())
+            if split.path == "/api/world/daily-timeline":
+                if set(params) != {"date"} or len(params["date"]) != 1:
+                    raise ValueError("Expected one date")
+                return self.json_response(daily_timeline_snapshot(self.server.state, self.server.world, params["date"][0]))
             if split.path == "/api/world/imports":
                 from history_import import catalog
                 return self.json_response(catalog(self.server.state))

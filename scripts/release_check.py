@@ -25,7 +25,7 @@ IGNORED_SCAN_DIRS = {".git", "__pycache__", ".pytest_cache", ".mypy_cache", ".ru
 RUNTIME_DIRS = {"state", "private", "media", "archives", "backups", "db_storage", "xwechat_files",
                 "vendor", ".venv", "venv", ".wechat-local", "encrypted-db-backup", "captures",
                 "models", "weights", "node_modules", "dist", "build"}
-RUNTIME_NAMES = {"keys.json", "key.json", "source-config.json", "media-config.json", "local-access.json",
+RUNTIME_NAMES = {"keys.json", "key.json", "source-config.json", "daily-timeline-sources.json", "media-config.json", "local-access.json",
                  "personal-world-access.json", "profile-state.json", "profile.lock", "archive.json", "archive.jsonl", "workspace.sqlite",
                  "index.sqlite", "credentials.json", "auth.json", ".env", ".ds_store"}
 BINARY_SUFFIXES = {".db", ".sqlite", ".sqlite3", ".wal", ".shm", ".db-wal", ".db-shm", ".jsonl", ".ndjson",

@@ -206,7 +206,7 @@ async function runChecks() {
   check('explicit reload reads latest saved revision after conflict',()=>{assert.strictEqual(byId('draft-body').value,'OTHER_WINDOW_SAVED');assert.strictEqual(byId('draft-title-input').value,'OTHER_WINDOW_TITLE');assert(byId('draft-save-status').textContent.includes('第 3 版'));});
   byId('draft-dialog').close();modify=(path,data)=>{if(path==='/api/world/drafts'&&data.items?.length){data.items[0].source_stale=true;data.items[0].source_note='SYNTHETIC_CHANGED_SOURCE';}return data;};byId('refresh-drafts').click();await settle();
   check('stale draft source warning shown',()=>{assert(byId('draft-list').textContent.includes('依据已变化'));});modify=null;
-  document.querySelector('[data-view="timeline"]').click();await settle();byId('timeline-all').click();await settle();
+  document.querySelector('[data-view="timeline"]').click();await settle();byId('timeline-chat').click();await settle();byId('timeline-all').click();await settle();
   check('timeline all-records reset and evidence affordance',()=>{assert.strictEqual(byId('world-query').value,'');assert.strictEqual(byId('timeline-list').querySelectorAll('.timeline-entry').length,config.messages);assert(byId('timeline-list').textContent.includes('查看上下文'));});
   document.querySelector('[data-view="graph"]').click();await settle();
   check('deterministic evidence graph and edge inspector',()=>{assert(!byId('graph-layout').hidden);assert(byId('graph-svg').querySelectorAll('.graph-node').length>0);assert(byId('graph-svg').querySelectorAll('.graph-edge').length>0);assert(byId('graph-info').querySelectorAll('.edge-item').length>0);});

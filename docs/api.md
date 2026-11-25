@@ -19,6 +19,7 @@
 | `GET /api/world/overview` | 无 | `ready`、`demo`、`counts`、`analysis`、人工状态汇总 `reviews`、`notes` |
 | `GET /api/world/opportunities` | `q`、`from`、`to`、`limit`（默认 50，最多 500）、`status` | 候选 `items`、命中与实际分析数量、截断标记、方法与范围说明 |
 | `GET /api/world/timeline` | `q`、`from`、`to`、`limit`（默认 100，最多 300）、`cursor` | 消息 `items`、`has_more`、`next_cursor`、范围说明 |
+| `GET /api/world/daily-timeline` | `date`（必填，`YYYY-MM-DD`） | 所选日期、时区、各来源状态、按小时汇总的数量 |
 | `GET /api/world/graph` | `q`、`limit`（节点数，默认 80，8—160） | `nodes`、`edges`、命中与分析数量、`truncated`、范围说明 |
 | `GET /api/world/evidence` | `id`（消息 ID）、`radius`（默认 4，1—25） | 原消息 `message`、`conversation`、同会话 `context`、`fingerprint` |
 | `GET /api/world/coverage` | 无 | `total_messages`、`by_type`、`media_status`、`date_range`、`notes` |
@@ -59,6 +60,14 @@
 候选引擎最多读取最近 50,000 条主题命中和 50,000 条后续语境命中，并保留至多 5,000 个分组候选。`truncated` 明示达到上限的情况。日期与状态过滤作用于返回候选；同一讨论片段的反例证据可能在选定日期以外，因此不要把过滤后的候选列表当成该日期区间的完整统计。
 
 ### 时间线、图谱与证据
+
+「人生时间线」默认打开每日概况。每日接口只返回 `date`、`timezone`、`sources`、`hours`。小时为北京时间的 0 至 23，列表只包含有计数的小时，按从早到晚排序。微信走现有只读索引，直接对时间列计数。接口无需微信索引就绪即可汇总其他已启用来源。访问仍需本机会话，响应禁止缓存。
+
+来源键为 `wechat`、`magpie`、`screen_memory`、`dsh_recorder`。每个来源含 `status` 和 `observations`。读取成功而当天为零时状态为 `ok`。其他状态有 `disabled`（未启用）、`not_found`（输入缺失）、`read_failed`（读取出错）、`config_error`（来源设置无效）和 `partial`（部分记录因字段异常或标识冲突被跳过）。微信人工示例会返回 `synthetic: true`。
+
+会话和录音按当天的起点归入小时。如果起点早于当天且终点落在当天，就使用终点所在小时。覆盖当天但两个端点均在当天之外的区间只计入来源的 `interval_only` 和 `observations`，小时列表不含这些区间。Magpie 只分析最近 `sample_limit` 条中实际返回的 `sampled_rows`。采样次数和会话范围不能换算为持续使用时长。
+
+每日接口不会返回正文、显示名、账号、会话或消息标识、精确时间、文件路径及凭据。切换到「聊天证据」才进入既有消息时间线。
 
 时间线按消息时间和稳定 ID 倒序分页。继续使用返回的 `next_cursor`，不要用显示时间自行拼接游标。单条消息含原归档字段、`conversation_name`、规则 `tags` 和等于消息 ID 的 `evidence_id`。
 
