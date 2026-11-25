@@ -36,6 +36,21 @@ python3 personal_world.py demo --no-open
 
 `--state PATH` 可以放在子命令前或后。`open` 和 `serve` 可使用 `--port PORT`。`demo`、`import`、`refresh` 的 `--no-open` 表示完成数据处理后不启动服务；`open --no-open` 仍会启动或复用服务，只取消唤起浏览器。
 
+## 每日时间线的本地来源
+
+「人生时间线 → 每日概况」直接使用当前工作区已导入的微信索引。要接入其他来源，可在当前状态目录内创建私人配置 `daily-timeline-sources.json`。在 macOS/Linux 上文件只允许本人读取和写入（0600）。下面各项均可省略，未配置的来源显示为未启用。
+
+```json
+{
+  "magpie": true,
+  "magpie_limit": 200,
+  "screen_db": "/absolute/path/to/screen-memory/data/memory.db",
+  "recorder_index": "/absolute/path/to/recorder-backend/index.json"
+}
+```
+
+Magpie 依赖服务进程能调用的 `magpie` 命令和它已有的会话读取授权，限制范围为 1 至 1,000 条。应用使用读取 Screen Memory 已保存的前台采样，录音读取 DSH AI Recorder 已生成的会话索引。每日查询按当前设置读源。检查或移走该配置即可调整读取范围，无需重新导入微信记录。
+
 ## 默认数据目录
 
 | 系统 | 默认位置 |
